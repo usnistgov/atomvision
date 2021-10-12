@@ -43,6 +43,7 @@ An example for using pre-trained densenet on STEM JARVIS-DFT 2D dataset is given
 python atomvision/scripts/train_classifiers.py --model_name densenet --train_folder atomvision/data/classification/stem_jv2d/train_folder --test_folder atomvision/data/classification/stem_jv2d/test_folder
 ```
 
+
 Note: the repository is under development.
 
 
