@@ -26,6 +26,7 @@ Now, let's install the package:
 ```
 git clone https://github.com/usnistgov/atomvision.git
 cd atomvision
+pip install torchvision
 python setup.py develop
 ```
 
