@@ -19,9 +19,7 @@ def get_coordinates(graphs, grid_side, coarsening_levels, perm):
                     cnt += 1
             xs.append(x_accum / cnt)
             ys.append(y_accum / cnt)
-        rst.append(
-            th.cat([th.tensor(xs).view(-1, 1), th.tensor(ys).view(-1, 1)], -1)
-        )
+        rst.append(th.cat([th.tensor(xs).view(-1, 1), th.tensor(ys).view(-1, 1)], -1))
     return rst
 
 

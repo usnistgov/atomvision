@@ -90,9 +90,7 @@ transform = transforms.Compose(
 if __name__ == "__main__":
     args = parser.parse_args(sys.argv[1:])
 
-    train_dataset = datasets.ImageFolder(
-        args.train_folder, transform=transform
-    )
+    train_dataset = datasets.ImageFolder(args.train_folder, transform=transform)
     val_dataset = datasets.ImageFolder(args.test_folder, transform=transform)
     train_loader = torch.utils.data.DataLoader(
         train_dataset, batch_size=args.batch_size, shuffle=True
@@ -120,20 +118,14 @@ if __name__ == "__main__":
 
     # defining the number of epochs
     # creating trainer,evaluator
-    trainer = create_supervised_trainer(
-        model, optimizer, criterion, device=device
-    )
+    trainer = create_supervised_trainer(model, optimizer, criterion, device=device)
     metrics = {
         "accuracy": Accuracy(),
         "nll": Loss(criterion),
         "cm": ConfusionMatrix(num_classes=5),
     }
-    train_evaluator = create_supervised_evaluator(
-        model, metrics=metrics, device=device
-    )
-    val_evaluator = create_supervised_evaluator(
-        model, metrics=metrics, device=device
-    )
+    train_evaluator = create_supervised_evaluator(model, metrics=metrics, device=device)
+    val_evaluator = create_supervised_evaluator(model, metrics=metrics, device=device)
     training_history = {"accuracy": [], "loss": []}
     validation_history = {"accuracy": [], "loss": []}
     last_epoch = []
@@ -144,9 +136,7 @@ if __name__ == "__main__":
         val_loss = engine.state.metrics["nll"]
         return -val_loss
 
-    handler = EarlyStopping(
-        patience=10, score_function=score_function, trainer=trainer
-    )
+    handler = EarlyStopping(patience=10, score_function=score_function, trainer=trainer)
     val_evaluator.add_event_handler(Events.COMPLETED, handler)
 
     @trainer.on(Events.EPOCH_COMPLETED)
@@ -201,9 +191,7 @@ if __name__ == "__main__":
     checkpointer = ModelCheckpoint(
         output_dir, "output", n_saved=2, create_dir=True, require_empty=False
     )
-    trainer.add_event_handler(
-        Events.EPOCH_COMPLETED, checkpointer, {"output": model}
-    )
+    trainer.add_event_handler(Events.EPOCH_COMPLETED, checkpointer, {"output": model})
     trainer.run(train_loader, max_epochs=epochs)
     plt.plot(training_history["accuracy"], label="Training Accuracy")
     plt.plot(validation_history["accuracy"], label="Validation Accuracy")

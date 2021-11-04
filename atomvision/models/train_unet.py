@@ -71,9 +71,7 @@ class Up(nn.Module):
 
         # if bilinear, use the normal convolutions to reduce the number of channels
         if bilinear:
-            self.up = nn.Upsample(
-                scale_factor=2, mode="bilinear", align_corners=True
-            )
+            self.up = nn.Upsample(scale_factor=2, mode="bilinear", align_corners=True)
             self.conv = DoubleConv(in_channels, out_channels, in_channels // 2)
         else:
             self.up = nn.ConvTranspose2d(
@@ -163,16 +161,10 @@ random.seed(123)
 np.random.seed(123)
 # Load in each dataset and apply transformations using
 # the torchvision.datasets as datasets library
-train_path = (
-    "/home/knc6/Software/atomvision/atomvision/data/STM_JV/train_folder"
-)
+train_path = "/home/knc6/Software/atomvision/atomvision/data/STM_JV/train_folder"
 test_path = "/home/knc6/Software/atomvision/atomvision/data/STM_JV/test_folder"
-train_path = (
-    "/home/knc6/Software/atomvision/atomvision/data/STEM_JV/train_folder"
-)
-test_path = (
-    "/home/knc6/Software/atomvision/atomvision/data/STEM_JV/test_folder"
-)
+train_path = "/home/knc6/Software/atomvision/atomvision/data/STEM_JV/train_folder"
+test_path = "/home/knc6/Software/atomvision/atomvision/data/STEM_JV/test_folder"
 train_dataset = datasets.ImageFolder(train_path, transform=transform)
 val_dataset = datasets.ImageFolder(test_path, transform=transform)
 # val_set = train_set #datasets.ImageFolder("root/label/valid", transform = transformations)
@@ -183,12 +175,8 @@ val_dataset = datasets.ImageFolder(test_path, transform=transform)
 # print (len(dataset),n_train,n_test)
 # train_set, val_set = torch.utils.data.random_split(dataset, [n_train,n_test])
 # Put into a Dataloader using torch library
-train_loader = torch.utils.data.DataLoader(
-    train_dataset, batch_size=1, shuffle=True
-)
-val_loader = torch.utils.data.DataLoader(
-    val_dataset, batch_size=1, shuffle=True
-)
+train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=1, shuffle=True)
+val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=1, shuffle=True)
 
 
 model = models.densenet161(pretrained=True)
@@ -212,12 +200,8 @@ metrics = {
     "nll": Loss(criterion),
     "cm": ConfusionMatrix(num_classes=5),
 }
-train_evaluator = create_supervised_evaluator(
-    model, metrics=metrics, device=device
-)
-val_evaluator = create_supervised_evaluator(
-    model, metrics=metrics, device=device
-)
+train_evaluator = create_supervised_evaluator(model, metrics=metrics, device=device)
+val_evaluator = create_supervised_evaluator(model, metrics=metrics, device=device)
 training_history = {"accuracy": [], "loss": []}
 validation_history = {"accuracy": [], "loss": []}
 last_epoch = []
@@ -231,9 +215,7 @@ def score_function(engine):
     return -val_loss
 
 
-handler = EarlyStopping(
-    patience=10, score_function=score_function, trainer=trainer
-)
+handler = EarlyStopping(patience=10, score_function=score_function, trainer=trainer)
 val_evaluator.add_event_handler(Events.COMPLETED, handler)
 
 
@@ -296,9 +278,7 @@ checkpointer = ModelCheckpoint(
     create_dir=True,
     require_empty=False,
 )
-trainer.add_event_handler(
-    Events.EPOCH_COMPLETED, checkpointer, {"STEM5": model}
-)
+trainer.add_event_handler(Events.EPOCH_COMPLETED, checkpointer, {"STEM5": model})
 trainer.run(train_loader, max_epochs=epochs)
 plt.plot(training_history["accuracy"], label="Training Accuracy")
 plt.plot(validation_history["accuracy"], label="Validation Accuracy")

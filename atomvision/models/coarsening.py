@@ -39,9 +39,7 @@ def rescale_L(L, lmax=2):
 
 def lmax_L(L):
     """Compute largest Laplacian eigenvalue"""
-    return scipy.sparse.linalg.eigsh(
-        L, k=1, which="LM", return_eigenvectors=False
-    )[0]
+    return scipy.sparse.linalg.eigsh(L, k=1, which="LM", return_eigenvectors=False)[0]
 
 
 # graph coarsening with Heavy Edge Matching
@@ -189,9 +187,7 @@ def HEM_one_level(rr, cc, vv, rid, weights):
 
                     # First approach
                     if 2 == 1:
-                        tval = vv[rs + jj] * (
-                            1.0 / weights[tid] + 1.0 / weights[nid]
-                        )
+                        tval = vv[rs + jj] * (1.0 / weights[tid] + 1.0 / weights[nid])
 
                     # Second approach
                     if 1 == 1:

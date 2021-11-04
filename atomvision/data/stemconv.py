@@ -34,8 +34,7 @@ class STEMConv(object):
         self.nbins = nbins
         self.tol = tol
 
-    
-    def superpose_deltas(self,positions, array):
+    def superpose_deltas(self, positions, array):
         """Superpose deltas."""
         z = 0
         shape = array.shape[-2:]
@@ -48,9 +47,9 @@ class STEMConv(object):
         array[z, (rows + 1) % shape[0], cols] += (positions[:, 0] - rows) * (
             1 - (positions[:, 1] - cols)
         )
-        array[z, rows, (cols + 1) % shape[1]] += (
-            1 - (positions[:, 0] - rows)
-        ) * (positions[:, 1] - cols)
+        array[z, rows, (cols + 1) % shape[1]] += (1 - (positions[:, 0] - rows)) * (
+            positions[:, 1] - cols
+        )
         array[z, (rows + 1) % shape[0], (cols + 1) % shape[1]] += (
             rows - positions[:, 0]
         ) * (cols - positions[:, 1])
@@ -68,7 +67,7 @@ class STEMConv(object):
         )
 
         margin = int(np.ceil(5 / min(sampling)))  # int like 20
-        
+
         shape_w_margin = (
             self.output_size[0] + 2 * margin,
             self.output_size[1] + 2 * margin,
@@ -78,12 +77,12 @@ class STEMConv(object):
         y = np.fft.fftfreq(shape_w_margin[1]) * shape_w_margin[1] * sampling[1]
         r = np.sqrt(x[:, None] ** 2 + y[None] ** 2)
 
-        # proble profile
+        # probe profile
 
         x = np.linspace(0, 4 * self.lorentzian_width, self.nbins)
-        profile = gaussian(
-            x, self.gaussian_width
-        ) + self.intensity_ratio * lorentzian(x, self.lorentzian_width)
+        profile = gaussian(x, self.gaussian_width) + self.intensity_ratio * lorentzian(
+            x, self.lorentzian_width
+        )
 
         profile /= profile.max()
         f = interp1d(x, profile, fill_value=0, bounds_error=False)
@@ -96,33 +95,33 @@ class STEMConv(object):
             & (positions[:, 0] < self.output_size[0] + margin)
             & (positions[:, 1] < self.output_size[1] + margin)
         )
-        
+
         positions = positions[inside] + margin
-         
+
         numbers = np.array(self.atoms.atomic_numbers)[inside]
 
         array = np.zeros((1,) + shape_w_margin)  # adding extra 1
-        masks=[]
+        masks = []
         mask = np.zeros((1,) + shape_w_margin)
         for number in np.unique(np.array(self.atoms.atomic_numbers)):
-            
+
             temp = np.zeros((1,) + shape_w_margin)
-            temp=self.superpose_deltas(positions[numbers == number], temp)
+            temp = self.superpose_deltas(positions[numbers == number], temp)
             array += temp * number ** self.power_factor
-            info={}
-            info['at_numb']=number
-            temp = np.where(temp > 0.1, number, temp)
-            #temp = np.where(temp == 0, 255, temp)
-            info['array']=temp
+            info = {}
+            info["at_numb"] = number
+            temp = np.where(temp > 0, number, temp)
+            # temp = np.where(temp == 0, 255, temp)
+            info["array"] = temp
             masks.append(info)
-            mask+=temp[0]
-        
+            mask += temp[0]
+
         array = np.fft.ifft2(np.fft.fft2(array) * np.fft.fft2(intensity)).real
-        
-        #array=array[0]
+
+        # array=array[0]
         array = array[0, margin:-margin, margin:-margin]
-        mask=mask[0, margin:-margin, margin:-margin]
-        return array,mask
+        mask = mask[0, margin:-margin, margin:-margin]
+        return array, mask, masks
 
 
 """

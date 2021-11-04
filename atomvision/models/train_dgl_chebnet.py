@@ -23,9 +23,7 @@ argparser.add_argument(
 argparser.add_argument(
     "--model", type=str, default="chebnet", help="model to use, chebnet/monet"
 )
-argparser.add_argument(
-    "--batch-size", type=int, default=100, help="batch size"
-)
+argparser.add_argument("--batch-size", type=int, default=100, help="batch size")
 args = argparser.parse_args()
 
 grid_side = 28  # 255 #28
@@ -95,25 +93,17 @@ transform = transforms.Compose(
         transforms.Resize(255),
         transforms.CenterCrop(224),
         transforms.ToTensor(),
-        transforms.Normalize(
-            mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
-        ),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     ]
 )
 
 
-train_path = (
-    "/home/knc6/Software/atomvision/atomvision/data/STM_JV/train_folder"
-)
+train_path = "/home/knc6/Software/atomvision/atomvision/data/STM_JV/train_folder"
 test_path = "/home/knc6/Software/atomvision/atomvision/data/STM_JV/test_folder"
 
 
-train_path = (
-    "/home/knc6/Software/atomvision/atomvision/data/STEM_JV/train_folder"
-)
-test_path = (
-    "/home/knc6/Software/atomvision/atomvision/data/STEM_JV/test_folder"
-)
+train_path = "/home/knc6/Software/atomvision/atomvision/data/STEM_JV/train_folder"
+test_path = "/home/knc6/Software/atomvision/atomvision/data/STEM_JV/test_folder"
 
 
 train_dataset = datasets.ImageFolder(
@@ -157,13 +147,9 @@ class MoNet(nn.Module):
 
         # Hidden layer
         for i in range(1, len(hiddens)):
-            self.layers.append(
-                GMMConv(hiddens[i - 1], hiddens[i], 2, n_kernels)
-            )
+            self.layers.append(GMMConv(hiddens[i - 1], hiddens[i], 2, n_kernels))
 
-        self.cls = nn.Sequential(
-            nn.Linear(hiddens[-1], out_feats), nn.LogSoftmax()
-        )
+        self.cls = nn.Sequential(nn.Linear(hiddens[-1], out_feats), nn.LogSoftmax())
 
     def forward(self, g_arr, feat):
         for g, layer in zip(g_arr, self.layers):
@@ -191,17 +177,13 @@ class ChebNet(nn.Module):
         for i in range(1, len(hiddens)):
             self.layers.append(ChebConv(hiddens[i - 1], hiddens[i], k))
 
-        self.cls = nn.Sequential(
-            nn.Linear(hiddens[-1], out_feats), nn.LogSoftmax()
-        )
+        self.cls = nn.Sequential(nn.Linear(hiddens[-1], out_feats), nn.LogSoftmax())
 
     def forward(self, g_arr, feat):
         for g, layer in zip(g_arr, self.layers):
             feat = (
                 self.pool(
-                    layer(g, feat, [2] * g.batch_size)
-                    .transpose(-1, -2)
-                    .unsqueeze(0)
+                    layer(g, feat, [2] * g.batch_size).transpose(-1, -2).unsqueeze(0)
                 )
                 .squeeze(0)
                 .transpose(-1, -2)
@@ -246,11 +228,7 @@ for epoch in range(nepochs):
         loss_accum += loss.item()
 
         if (i + 1) % log_interval == 0:
-            print(
-                "loss: {}, acc: {}".format(
-                    loss_accum / log_interval, hit / tot
-                )
-            )
+            print("loss: {}, acc: {}".format(loss_accum / log_interval, hit / tot))
             hit, tot = 0, 0
             loss_accum = 0
 
