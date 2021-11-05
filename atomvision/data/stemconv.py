@@ -7,38 +7,7 @@ from scipy.interpolate import interp1d
 from jarvis.core.utils import gaussian
 from jarvis.core.utils import lorentzian2 as lorentzian
 from jarvis.core.atoms import Atoms, get_supercell_dims, crop_square
-
-
-def make_supercell(atoms=None, csize=10):
-    """Crop a square portion from a surface/2D system."""
-    sz = csize / 2
-    # sz = csize
-    # just to make sure we have enough material to crop from
-    enforce_c_size = sz * 3
-    dims = get_supercell_dims(atoms, enforce_c_size=enforce_c_size)
-    b = atoms.make_supercell_matrix(dims).center_around_origin()
-    lat_mat = [
-        [enforce_c_size, 0, 0],
-        [0, enforce_c_size, 0],
-        [0, 0, b.lattice_mat[2][2]],
-    ]
-
-    els = []
-    coords = []
-    for i, j in zip(b.cart_coords, b.elements):
-        if True:  # i[0] <= sz and i[0] >= -sz and i[1] <= sz and i[1] >= -sz:
-            els.append(j)
-            coords.append(i)
-    coords = np.array(coords)
-    # new_mat = (
-    #    [max(coords[:, 0]) - min(coords[:, 0]) + tol, 0, 0],
-    #    [0, max(coords[:, 1]) - min(coords[:, 1]) + tol, 0],
-    #    [0, 0, b.lattice_mat[2][2]],
-    # )
-    new_atoms = Atoms(
-        lattice_mat=lat_mat, elements=els, coords=coords, cartesian=True
-    ).center_around_origin([0.5, 0.5, 0.5])
-    return new_atoms
+from typing import List
 
 
 class STEMConv(object):
@@ -90,107 +59,37 @@ class STEMConv(object):
         ) * (cols - positions[:, 1])
         return array
 
-    def simulate_surface(self):
-        """Simulate a STEM image."""
-
-        output_size = np.squeeze(self.output_size)
-        extent = np.diag(self.atoms.lattice_mat)[:2]
-        sampling = tuple(extent / output_size)
-        sampling = (sampling[0], sampling[1])
-
-        margin = int(np.ceil(5 / min(sampling)))  # int like 20
-        shape_w_margin = tuple(output_size + 2 * margin)
-
-        # Set up real-space grid (in angstroms?)
-        x = np.fft.fftfreq(shape_w_margin[0]) * shape_w_margin[0] * sampling[0]
-        y = np.fft.fftfreq(shape_w_margin[1]) * shape_w_margin[1] * sampling[1]
-        r = np.sqrt(x[:, None] ** 2 + y[None] ** 2)
-
-        # construct the probe profile centered at (0,0) on the periodic spatial grid
-        x = np.linspace(0, 4 * self.lorentzian_width, self.nbins)
-        profile = gaussian(x, self.gaussian_width) + self.intensity_ratio * lorentzian(
-            x, self.lorentzian_width
-        )
-
-        profile /= profile.max()
-        f = interp1d(x, profile, fill_value=0, bounds_error=False)
-        intensity = f(r)
-
-        # project atomic coordinates onto the image
-        positions = self.atoms.cart_coords[:, :2] / sampling - self.tol
-
-        # Check if atoms are within the specified range
-        inside = (
-            (positions[:, 0] > -margin)
-            & (positions[:, 1] > -margin)
-            & (positions[:, 0] < self.output_size[0] + margin)
-            & (positions[:, 1] < self.output_size[1] + margin)
-        )
-
-        inside = np.ones(positions.shape[0], dtype=bool)
-        positions = positions[inside] + margin
-
-        numbers = np.array(self.atoms.atomic_numbers)[inside]
-
-        array = np.zeros((1,) + shape_w_margin)  # adding extra 1
-        mask = np.zeros((1,) + shape_w_margin)
-        for number in np.unique(np.array(self.atoms.atomic_numbers)):
-
-            temp = np.zeros((1,) + shape_w_margin)
-            temp = self.superpose_deltas(positions[numbers == number], temp)
-            array += temp * number ** self.power_factor
-            temp = np.where(temp > 0, number, temp)
-            mask += temp[0]
-
-        array = np.fft.ifft2(np.fft.fft2(array) * np.fft.fft2(intensity)).real
-
-        scale = 1
-        sel = slice(scale * margin, -scale * margin)
-        # sel = slice(1, -1)
-        array = array[0, sel, sel]
-        mask = mask[0, sel, sel]
-        positions = positions - scale * margin
-
-        # array = array[0, margin:-margin, margin:-margin]
-        # mask = mask[0, margin:-margin, margin:-margin]
-
-        if self.crop:
-            sel = slice(margin, -margin)
-            return array[sel, sel], mask[sel, sel], positions - 2 * margin
-
-        return array, mask, positions
-
-    def simulate_surface_2(self, atoms, px_scale=0.2, eps=0.1, rot=0):
+    def simulate_surface(
+        self,
+        atoms: Atoms,
+        px_scale: float = 0.2,
+        eps: float = 0.6,
+        rot: float = 0,
+        shift: List = [0, 0],
+    ):
         """Simulate a STEM image.
 
+        atoms: jarvis.core.Atoms material slab
         px_scale: pixel size in angstroms/px
-        """
+        eps: tolerance factor (angstroms) for rendering atoms outside the field of view
+        rot: rotation about the image center (degrees)
+        shift: rigid translation of field of view [dx, dy] (angstroms)
 
-        # instead of padding and all this first,
+        """
+        shift = np.squeeze(shift)
+        output_px = np.squeeze(self.output_size)  # px
+
+        # field of view size in angstroms
+        view_size = px_scale * (output_px - 1)
+
+        # construct a supercell grid big enough to fill the field of view
+        cell_extent = np.diag(atoms.lattice_mat)[:2]
+        cells = ((view_size // cell_extent) + 1).astype(int)
+        atoms = atoms.make_supercell((3 * cells[0], 3 * cells[1], 1))
+
+        # Set up real-space grid (in angstroms)
         # construct the probe array with the output target size
         # fftshift, pad, un-fftshift
-
-        # px_scale = 0.2  # angstrom/px
-        output_px = np.squeeze(self.output_size)  # px
-        view_size = px_scale * (output_px - 1)  # angstrom
-        print(f"{view_size=}")
-
-        extent = np.diag(atoms.lattice_mat)[:2]
-        print(f"{extent=}")
-        cells = ((view_size // extent) + 1).astype(int)
-        print(f"{cells=}")
-        atoms = atoms.make_supercell_matrix(
-            (cells[0], cells[1], 1)
-        ).center_around_origin()
-        extent = np.diag(atoms.lattice_mat)[:2]
-
-        sampling = (px_scale, px_scale)
-        print(f"{sampling=}")
-
-        margin = int(np.ceil(5 / min(sampling)))  # int like 20
-        shape_w_margin = tuple(output_px + 2 * margin)
-
-        # Set up real-space grid (in angstroms?)
         x = np.fft.fftfreq(output_px[0]) * output_px[0] * px_scale
         y = np.fft.fftfreq(output_px[1]) * output_px[1] * px_scale
         r = np.sqrt(x[:, None] ** 2 + y[None] ** 2)
@@ -200,13 +99,13 @@ class STEMConv(object):
         profile = gaussian(x, self.gaussian_width) + self.intensity_ratio * lorentzian(
             x, self.lorentzian_width
         )
-
         profile /= profile.max()
         f = interp1d(x, profile, fill_value=0, bounds_error=False)
         intensity = f(r)
 
         # shift the probe profile to the center
         # apply zero-padding, and shift back to the origin
+        margin = int(np.ceil(5 / px_scale))  # int like 20
         intensity = np.fft.fftshift(intensity)
         intensity = np.pad(intensity, (margin, margin))
         intensity = np.fft.fftshift(intensity)
@@ -214,12 +113,12 @@ class STEMConv(object):
         # project atomic coordinates onto the image
         # center them as well
         centroid = np.mean(atoms.cart_coords[:, :2], axis=0)
-        print(f"{centroid=}")
 
         # center atom positions around (0,0)
         pos = atoms.cart_coords[:, :2] - centroid
 
-        # apply rotation
+        # apply field of view rotation
+        # (actually rotate the lattice coordinates)
         if rot != 0:
             rot = np.radians(rot)
             R = np.array([[np.cos(rot), -np.sin(rot)], [np.sin(rot), np.cos(rot)]])
@@ -227,6 +126,9 @@ class STEMConv(object):
 
         # shift to center of image
         pos += view_size / 2
+
+        # apply rigid translation of atoms wrt image field of view
+        pos += shift
 
         # select only atoms in field of view
         in_view = (
@@ -241,11 +143,18 @@ class STEMConv(object):
 
         atom_px = pos / px_scale  # AA / (AA/px) -> px
 
-        # # shift atomic positions to offset zero padding
         # atom_px = atom_px + margin
 
-        render = (atom_px[:, 0] < output_px[0]) & (atom_px[:, 1] < output_px[1])
+        render = in_view
+        # render = (
+        #     (pos[:, 0] > 0)
+        #     & (pos[:, 0] < view_size[0])
+        #     & (pos[:, 1] > 0)
+        #     & (pos[:, 1] < view_size[1])
+        # )
+
         numbers_render = numbers[render]
+        # # shift atomic positions to offset zero padding
         atom_px_render = atom_px[render] + margin
 
         # initialize arrays with zero padding
@@ -263,18 +172,17 @@ class STEMConv(object):
         # FFT convolution of beam profile and atom position delta functions
         array = np.fft.ifft2(np.fft.fft2(array) * np.fft.fft2(intensity)).real
 
-        scale = 1
-        sel = slice(scale * margin, -scale * margin)
-        # sel = slice(0, -1)
+        # crop the FFT padding and fix atom coordinates relative to
+        # the image field of view
+        sel = slice(margin, -margin)
         array = array[0, sel, sel]
-
         mask = mask[0, sel, sel]
-        atom_px = atom_px - scale * margin
+        # atom_px = atom_px - margin
 
         atom_px = pos[in_view] / px_scale
         numbers = numbers[in_view]
 
-        return array, mask, atom_px, margin
+        return array, mask, atom_px
 
 
 """
@@ -287,10 +195,14 @@ if __name__ == "__main__":
     plt.switch_backend("agg")
 
     a = Atoms.from_dict(get_jid_data("JVASP-667")["atoms"])
-    c = crop_square(a)
-    # c = a.make_supercell_matrix([2, 2, 1])
-    p = STEMConv(atoms=c).simulate_surface()
-    plt.imshow(p, interpolation="gaussian", cmap="plasma")
+    stem = STEMConv(output_size=(256, 256))
+    p, mask, atom_x = stem.simulate_surface(
+        a, px_scale=0.15, eps=0.6, rot=2, shift=[-0.2, 0.3]
+    )
+    plt.imshow(p, origin="lower", cmap="plasma")
+    plt.scatter(
+        atom_x[:, 1], atom_x[:, 0], marker="o", facecolors="none", edgecolors="r"
+    )
     plt.savefig("stem_example.png")
     plt.close()
 """
