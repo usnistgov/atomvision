@@ -1,3 +1,4 @@
+"""Simulated STEM pytorch dataloader for atom localization and crystal classification."""
 import torch
 from torch.utils.data import Dataset, DataLoader
 
@@ -20,6 +21,11 @@ RADII = {int(row.Z): row.atom_rad for id, row in pt.iterrows()}
 
 
 def atomic_radius_mask(shape, X, N, px_scale=0.1):
+    """Atom localization masks, with footprints scaled to atomic radii.
+
+    Atoms occluding each other along the Z (transmission) dimension are
+    not guaranteed to be masked nicely; these are not multilabel masks
+    """
     labels = np.zeros(shape, dtype=int)
     for x, n in zip(X, N):
 
@@ -33,6 +39,11 @@ class Jarvis2dSTEMDataset:
     """Simulated STEM dataset (jarvis dft_2d)"""
 
     def __init__(self, px_scale=0.1, label_mode="delta"):
+        """Simulated STEM dataset, jarvis-2d data
+
+        px_scale: pixel size in angstroms
+        label_mode: `delta` or `radius`, controls atom localization mask style
+        """
 
         if label_mode not in LABEL_MODES:
             raise NotImplementedError(f"label mode {label_mode} not supported")
@@ -44,9 +55,11 @@ class Jarvis2dSTEMDataset:
         self.stem = STEMConv(output_size=[256, 256])
 
     def __len__(self):
+        """Datset size: len(jarvis_2d)"""
         return self.df.shape[0]
 
     def __getitem__(self, idx):
+        """Sample: image, label mask, atomic coords, numbers, structure ids."""
         row = self.df.iloc[idx]
         a = Atoms.from_dict(row.atoms)
 
