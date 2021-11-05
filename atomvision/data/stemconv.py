@@ -160,7 +160,7 @@ class STEMConv(object):
 
         return array, mask, positions
 
-    def simulate_surface_2(self, atoms, px_scale=0.2, eps=0.1):
+    def simulate_surface_2(self, atoms, px_scale=0.2, eps=0.1, rot=0):
         """Simulate a STEM image.
 
         px_scale: pixel size in angstroms/px
@@ -172,7 +172,7 @@ class STEMConv(object):
 
         # px_scale = 0.2  # angstrom/px
         output_px = np.squeeze(self.output_size)  # px
-        view_size = px_scale * output_px  # angstrom
+        view_size = px_scale * (output_px - 1)  # angstrom
         print(f"{view_size=}")
 
         extent = np.diag(atoms.lattice_mat)[:2]
@@ -219,6 +219,12 @@ class STEMConv(object):
         # center atom positions around (0,0)
         pos = atoms.cart_coords[:, :2] - centroid
 
+        # apply rotation
+        if rot != 0:
+            rot = np.radians(rot)
+            R = np.array([[np.cos(rot), -np.sin(rot)], [np.sin(rot), np.cos(rot)]])
+            pos = pos @ R
+
         # shift to center of image
         pos += view_size / 2
 
@@ -235,16 +241,21 @@ class STEMConv(object):
 
         atom_px = pos / px_scale  # AA / (AA/px) -> px
 
-        # shift atomic positions to offset zero padding
-        atom_px = atom_px + margin
+        # # shift atomic positions to offset zero padding
+        # atom_px = atom_px + margin
+
+        render = (atom_px[:, 0] < output_px[0]) & (atom_px[:, 1] < output_px[1])
+        numbers_render = numbers[render]
+        atom_px_render = atom_px[render] + margin
 
         # initialize arrays with zero padding
         array = np.zeros((1,) + intensity.shape)  # adding extra 1
         mask = np.zeros((1,) + intensity.shape)
+        print(f"intensity: {array.shape}")
         for number in np.unique(np.array(atoms.atomic_numbers)):
 
-            temp = np.zeros((1,) + shape_w_margin)
-            temp = self.superpose_deltas(atom_px[numbers == number], temp)
+            temp = np.zeros((1,) + intensity.shape)
+            temp = self.superpose_deltas(atom_px_render[numbers_render == number], temp)
             array += temp * number ** self.power_factor
             temp = np.where(temp > 0, number, temp)
             mask += temp[0]
