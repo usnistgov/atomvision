@@ -85,7 +85,7 @@ class STEMConv(object):
         # construct a supercell grid big enough to fill the field of view
         cell_extent = np.diag(atoms.lattice_mat)[:2]
         cells = ((view_size // cell_extent) + 1).astype(int)
-        atoms = atoms.make_supercell((3 * cells[0], 3 * cells[1], 1))
+        atoms = atoms.make_supercell_matrix((3 * cells[0], 3 * cells[1], 1))
 
         # Set up real-space grid (in angstroms)
         # construct the probe array with the output target size
@@ -182,7 +182,7 @@ class STEMConv(object):
         atom_px = pos[in_view] / px_scale
         numbers = numbers[in_view]
 
-        return array, mask, atom_px
+        return array, mask, atom_px, numbers
 
 
 """
@@ -196,7 +196,7 @@ if __name__ == "__main__":
 
     a = Atoms.from_dict(get_jid_data("JVASP-667")["atoms"])
     stem = STEMConv(output_size=(256, 256))
-    p, mask, atom_x = stem.simulate_surface(
+    p, mask, atom_x, nb = stem.simulate_surface(
         a, px_scale=0.15, eps=0.6, rot=2, shift=[-0.2, 0.3]
     )
     plt.imshow(p, origin="lower", cmap="plasma")
