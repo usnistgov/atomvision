@@ -83,7 +83,7 @@ class STEMConv(object):
         view_size = px_scale * (output_px - 1)
 
         # construct a supercell grid big enough to fill the field of view
-        cell_extent = np.diag(atoms.lattice_mat)[:2]
+        cell_extent = atoms.lattice.abc[:2]
         cells = ((view_size // cell_extent) + 1).astype(int)
         atoms = atoms.make_supercell_matrix((3 * cells[0], 3 * cells[1], 1))
 
