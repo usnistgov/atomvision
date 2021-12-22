@@ -224,10 +224,17 @@ model = ResNetUNet(2)
 model = model.to(device)
 
 
-batch_size = 16
+batch_size = 32
+from jarvis.db.figshare import data
 
-train_set = Jarvis2dSTEMDataset()
-val_set = Jarvis2dSTEMDataset()
+my_data = data("dft_2d")
+test_perc = 10
+n_train = int(len(my_data) * (100 - test_perc) / 100)
+train_data = my_data[0:n_train]
+test_data = my_data[n_train:-1]
+
+train_set = Jarvis2dSTEMDataset(image_data=train_data)
+val_set = Jarvis2dSTEMDataset(image_data=test_data)
 
 dataloaders = {
     "train": DataLoader(

@@ -46,13 +46,13 @@ for i in data("dft_2d"):
         my_data.append(i)
 
 """
-my_data = data("dft_2d")[0:128]
+# my_data = data("dft_2d")[0:128]
 
 
 class Jarvis2dSTEMDataset:
     """Simulated STEM dataset (jarvis dft_2d)"""
 
-    def __init__(self, px_scale=0.1, label_mode="delta", image_data=my_data):
+    def __init__(self, px_scale=0.1, label_mode="delta", image_data=[]):
         """Simulated STEM dataset, jarvis-2d data
 
         px_scale: pixel size in angstroms
