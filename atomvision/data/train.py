@@ -220,45 +220,47 @@ def train_model(model, optimizer, scheduler, num_epochs=25):
     return model
 
 
-model = ResNetUNet(2)
-model = model.to(device)
+if __name__ == "__main__":
 
+    model = ResNetUNet(2)
+    model = model.to(device)
 
-batch_size = 32
-from jarvis.db.figshare import data
+    batch_size = 32
+    from jarvis.db.figshare import data
 
-my_data = data("dft_2d")
-test_perc = 10
-n_train = int(len(my_data) * (100 - test_perc) / 100)
-train_data = my_data[0:n_train]
-test_data = my_data[n_train:-1]
+    my_data = data("dft_2d")
+    test_perc = 10
+    n_train = int(len(my_data) * (100 - test_perc) / 100)
+    train_data = my_data[0:n_train]
+    test_data = my_data[n_train:-1]
 
-train_set = Jarvis2dSTEMDataset(image_data=train_data)
-val_set = Jarvis2dSTEMDataset(image_data=test_data)
+    train_set = Jarvis2dSTEMDataset(image_data=train_data)
+    val_set = Jarvis2dSTEMDataset(image_data=test_data)
 
-dataloaders = {
-    "train": DataLoader(
-        train_set, batch_size=batch_size, shuffle=True, num_workers=0
-    ),
-    "val": DataLoader(
-        val_set, batch_size=batch_size, shuffle=True, num_workers=0
-    ),
-}
-print(dataloaders)
+    dataloaders = {
+        "train": DataLoader(
+            train_set, batch_size=batch_size, shuffle=True, num_workers=0
+        ),
+        "val": DataLoader(
+            val_set, batch_size=batch_size, shuffle=True, num_workers=0
+        ),
+    }
+    print(dataloaders)
 
+    num_class = 2
+    model = ResNetUNet(num_class).to(device)
 
-num_class = 2
-model = ResNetUNet(num_class).to(device)
+    # freeze backbone layers
+    for l in model.base_layers:
+        for param in l.parameters():
+            param.requires_grad = False
 
-# freeze backbone layers
-for l in model.base_layers:
-    for param in l.parameters():
-        param.requires_grad = False
+    optimizer_ft = optim.Adam(
+        filter(lambda p: p.requires_grad, model.parameters()), lr=1e-4
+    )
 
-optimizer_ft = optim.Adam(
-    filter(lambda p: p.requires_grad, model.parameters()), lr=1e-4
-)
+    exp_lr_scheduler = lr_scheduler.StepLR(
+        optimizer_ft, step_size=8, gamma=0.1
+    )
 
-exp_lr_scheduler = lr_scheduler.StepLR(optimizer_ft, step_size=8, gamma=0.1)
-
-modee = train_model(model, optimizer_ft, exp_lr_scheduler, num_epochs=10)
+    modee = train_model(model, optimizer_ft, exp_lr_scheduler, num_epochs=10)
