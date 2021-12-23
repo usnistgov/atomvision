@@ -13,28 +13,30 @@ if torch.cuda.is_available():
 
 model.load_state_dict(torch.load("checkpoint.pth"))
 model.eval()
-
+model.to(device)
+for l in model.base_layers:
+    for param in l.parameters():
+        param.requires_grad = False
 
 my_data = data("dft_2d")[0:6]
 
 test_set = Jarvis2dSTEMDataset(image_data=my_data)
-#test_loader = DataLoader(
-#    test_set, batch_size=batch_size, shuffle=True, num_workers=0
-#)
+test_loader = DataLoader(
+    test_set, batch_size=batch_size, shuffle=True, num_workers=0
+)
 
 
-# Get the first batch
-inputs = test_set[0]["image"]
-labels = test_set[0]["label"]
-# inputs, labels = next(iter(test_loader))
-inputs = inputs.to(device)
-labels = labels  # .to(device)
-print("inputs.shape", inputs.shape)
-print("labels.shape", labels.shape)
-
-# Predict
-pred = model(inputs)
-# The loss functions include the sigmoid function.
-pred = torch.sigmoid(pred)
-pred = pred.data.cpu().numpy()
-print("pred.shape", pred.shape)
+for sample in test_loader:
+    inputs = sample["image"].to(
+        device
+    )  # .unsqueeze(1).repeat((1, 3, 1, 1), 1)
+    inputs = inputs.unsqueeze(1).repeat(1, 3, 1, 1)
+    labels = sample["label"].unsqueeze(1)
+    labels = (
+        torch.cat((labels == 0, labels > 0), 1).type(torch.float32).to(device)
+    )
+    pred = model(inputs)
+    pred = torch.sigmoid(pred)
+    pred = pred.data.cpu().numpy()
+    print("pred.shape", pred.shape)
+    print("labels.shape", labels.shape)
