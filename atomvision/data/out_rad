@@ -1,0 +1,76 @@
+device cuda
+Obtaining 2D dataset 1.1k ...
+Reference:https://www.nature.com/articles/s41524-020-00440-1
+Loading the zipfile...
+Loading completed.
+{'train': <torch.utils.data.dataloader.DataLoader object at 0x7f7b3c768bb0>, 'val': <torch.utils.data.dataloader.DataLoader object at 0x7f7b3c7686d0>}
+Epoch 0/9
+----------
+train: bce: 0.473245, dice: 0.320192, loss: 0.396719
+LR 0.0001
+val: bce: 0.335630, dice: 0.244178, loss: 0.289904
+saving best model to checkpoint_rad.pth
+2m 12s
+Epoch 1/9
+----------
+train: bce: 0.316322, dice: 0.223905, loss: 0.270113
+LR 0.0001
+val: bce: 0.272830, dice: 0.189494, loss: 0.231162
+saving best model to checkpoint_rad.pth
+2m 12s
+Epoch 2/9
+----------
+train: bce: 0.287583, dice: 0.195574, loss: 0.241578
+LR 0.0001
+val: bce: 0.264321, dice: 0.185573, loss: 0.224947
+saving best model to checkpoint_rad.pth
+2m 12s
+Epoch 3/9
+----------
+train: bce: 0.274607, dice: 0.184917, loss: 0.229762
+LR 0.0001
+val: bce: 0.255798, dice: 0.160038, loss: 0.207918
+saving best model to checkpoint_rad.pth
+2m 12s
+Epoch 4/9
+----------
+train: bce: 0.263191, dice: 0.174400, loss: 0.218795
+LR 0.0001
+val: bce: 0.229244, dice: 0.159347, loss: 0.194296
+saving best model to checkpoint_rad.pth
+2m 12s
+Epoch 5/9
+----------
+train: bce: 0.254793, dice: 0.164759, loss: 0.209776
+LR 0.0001
+val: bce: 0.247766, dice: 0.165206, loss: 0.206486
+2m 11s
+Epoch 6/9
+----------
+train: bce: 0.254026, dice: 0.166156, loss: 0.210091
+LR 0.0001
+val: bce: 0.215136, dice: 0.147090, loss: 0.181113
+saving best model to checkpoint_rad.pth
+2m 12s
+Epoch 7/9
+----------
+train: bce: 0.236578, dice: 0.158006, loss: 0.197292
+LR 1e-05
+val: bce: 0.210410, dice: 0.143020, loss: 0.176715
+saving best model to checkpoint_rad.pth
+2m 12s
+Epoch 8/9
+----------
+train: bce: 0.230642, dice: 0.154602, loss: 0.192622
+LR 1e-05
+val: bce: 0.206664, dice: 0.139161, loss: 0.172913
+saving best model to checkpoint_rad.pth
+2m 12s
+Epoch 9/9
+----------
+train: bce: 0.229291, dice: 0.153645, loss: 0.191468
+LR 1e-05
+val: bce: 0.205608, dice: 0.138872, loss: 0.172240
+saving best model to checkpoint_rad.pth
+2m 12s
+Best val loss: 0.172240

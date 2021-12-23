@@ -15,7 +15,7 @@ device = "cpu"
 if torch.cuda.is_available():
     device = torch.device("cuda")
 
-model.load_state_dict(torch.load("checkpoint.pth", map_location=device))
+model.load_state_dict(torch.load("checkpoint_rad.pth", map_location=device))
 model.eval()
 model.to(device)
 for l in model.base_layers:
@@ -24,7 +24,7 @@ for l in model.base_layers:
 
 my_data = data("dft_2d")[0:6]
 
-test_set = Jarvis2dSTEMDataset(image_data=my_data)
+test_set = Jarvis2dSTEMDataset(image_data=my_data, label_mode="radius")
 test_loader = DataLoader(
     test_set, batch_size=batch_size, shuffle=True, num_workers=0
 )
@@ -79,5 +79,5 @@ for ii, sample in enumerate(test_loader):
     plt.axis("off")
     # plt.tight_layout()
 plt.tight_layout()
-plt.savefig("pred.png")
+plt.savefig("pred_rad.png")
 plt.close()
