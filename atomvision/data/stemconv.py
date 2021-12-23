@@ -51,9 +51,9 @@ class STEMConv(object):
         array[z, (rows + 1) % shape[0], cols] += (positions[:, 0] - rows) * (
             1 - (positions[:, 1] - cols)
         )
-        array[z, rows, (cols + 1) % shape[1]] += (
-            1 - (positions[:, 0] - rows)
-        ) * (positions[:, 1] - cols)
+        array[z, rows, (cols + 1) % shape[1]] += (1 - (positions[:, 0] - rows)) * (
+            positions[:, 1] - cols
+        )
         array[z, (rows + 1) % shape[0], (cols + 1) % shape[1]] += (
             rows - positions[:, 0]
         ) * (cols - positions[:, 1])
@@ -84,6 +84,7 @@ class STEMConv(object):
 
         # construct a supercell grid big enough to fill the field of view
         cell_extent = atoms.lattice.abc[0:2]  # np.diag(atoms.lattice_mat)[:2]
+
         cells = ((view_size // cell_extent) + 1).astype(int)
         # print ('cells',cells)
         atoms = atoms.make_supercell_matrix((3 * cells[0], 3 * cells[1], 1))
@@ -97,9 +98,9 @@ class STEMConv(object):
 
         # construct the probe profile centered at (0,0) on the periodic spatial grid
         x = np.linspace(0, 4 * self.lorentzian_width, self.nbins)
-        profile = gaussian(
-            x, self.gaussian_width
-        ) + self.intensity_ratio * lorentzian(x, self.lorentzian_width)
+        profile = gaussian(x, self.gaussian_width) + self.intensity_ratio * lorentzian(
+            x, self.lorentzian_width
+        )
         profile /= profile.max()
         f = interp1d(x, profile, fill_value=0, bounds_error=False)
         intensity = f(r)
@@ -122,9 +123,7 @@ class STEMConv(object):
         # (actually rotate the lattice coordinates)
         if rot != 0:
             rot = np.radians(rot)
-            R = np.array(
-                [[np.cos(rot), -np.sin(rot)], [np.sin(rot), np.cos(rot)]]
-            )
+            R = np.array([[np.cos(rot), -np.sin(rot)], [np.sin(rot), np.cos(rot)]])
             pos = pos @ R
 
         # shift to center of image
@@ -167,9 +166,7 @@ class STEMConv(object):
         for number in np.unique(np.array(atoms.atomic_numbers)):
 
             temp = np.zeros((1,) + intensity.shape)
-            temp = self.superpose_deltas(
-                atom_px_render[numbers_render == number], temp
-            )
+            temp = self.superpose_deltas(atom_px_render[numbers_render == number], temp)
             array += temp * number ** self.power_factor
             temp = np.where(temp > 0, number, temp)
             mask += temp[0]
