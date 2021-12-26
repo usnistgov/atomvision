@@ -12,6 +12,10 @@ from jarvis.db.figshare import data, get_jid_data
 
 from atomvision.data.stemconv import STEMConv
 
+from collections.abc import Callable
+from typing import Optional, List, Dict, Any
+
+
 LABEL_MODES = {"delta", "radius"}
 
 # atomic radii
@@ -29,9 +33,7 @@ def atomic_radius_mask(shape, X, N, px_scale=0.1):
     labels = np.zeros(shape, dtype=int)
     for x, n in zip(X, N):
 
-        rr, cc = draw.disk(
-            tuple(x), 0.5 * RADII[n] / px_scale, shape=labels.shape
-        )
+        rr, cc = draw.disk(tuple(x), 0.5 * RADII[n] / px_scale, shape=labels.shape)
         labels[rr, cc] = n
 
     return labels
@@ -52,7 +54,13 @@ for i in data("dft_2d"):
 class Jarvis2dSTEMDataset:
     """Simulated STEM dataset (jarvis dft_2d)"""
 
-    def __init__(self, px_scale=0.1, label_mode="delta", image_data=[]):
+    def __init__(
+        self,
+        px_scale: float = 0.1,
+        label_mode: str = "delta",
+        image_data: Optional[List[Dict[str, Any]]] = None,
+        to_tensor: Optional[Callable] = None,
+    ):
         """Simulated STEM dataset, jarvis-2d data
 
         px_scale: pixel size in angstroms
@@ -64,10 +72,14 @@ class Jarvis2dSTEMDataset:
 
         self.px_scale = px_scale
         self.label_mode = label_mode
+        self.to_tensor = to_tensor
 
-        self.df = pd.DataFrame(image_data)
+        if image_data is not None:
+            self.df = pd.DataFrame(image_data)
+        else:
+            self.df = pd.DataFrame(data("dft_2d"))
+
         self.stem = STEMConv(output_size=[256, 256])
-        # self.stem = STEMConv(output_size=[256, 256])
 
     def __len__(self):
         """Datset size: len(jarvis_2d)"""
@@ -86,10 +98,9 @@ class Jarvis2dSTEMDataset:
         if self.label_mode == "radius":
             label = atomic_radius_mask(image.shape, pos, nb, self.px_scale)
 
-        sample = {
-            "image": torch.tensor(image, dtype=torch.float32),
-            "label": label,
-            "id": row.jid,
-        }
+        if self.to_tensor is not None:
+            image = self.to_tensor(torch.tensor(image))
+        sample = {"image": image, "label": torch.FloatTensor(label > 0), "id": row.jid}
+
         # sample = {"image": image, "label": label, "coords": pos, "id": row.jid}
         return sample
