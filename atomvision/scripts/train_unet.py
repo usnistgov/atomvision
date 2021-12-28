@@ -1,11 +1,15 @@
 import torch
 from torch import nn
 import skimage
-
+from jarvis.db.figshare import data
 from typing import Dict
 from ignite.metrics import Accuracy, Loss
-from ignite.engine import Events, create_supervised_trainer, create_supervised_evaluator
-
+from ignite.engine import (
+    Events,
+    create_supervised_trainer,
+    create_supervised_evaluator,
+)
+from ignite.handlers import Checkpoint, DiskSaver, TerminateOnNan
 import segmentation_models_pytorch as smp
 from segmentation_models_pytorch.encoders import get_preprocessing_fn
 
@@ -17,7 +21,10 @@ from atomvision.data.stem import Jarvis2dSTEMDataset
 # fine-tune an ResNet18 starting from an imagenet encoder
 # model(preprocess_input(I).permute((2, 0, 1)).type(torch.FloatTensor).unsqueeze(0))
 model = smp.Unet(
-    encoder_name="resnet18", encoder_weights="imagenet", in_channels=3, classes=1
+    encoder_name="resnet18",
+    encoder_weights="imagenet",
+    in_channels=3,
+    classes=1,
 )
 preprocess_input = get_preprocessing_fn("resnet18", pretrained="imagenet")
 
@@ -51,13 +58,34 @@ def prepare_batch(
     return batch
 
 
-j2d = Jarvis2dSTEMDataset(label_mode="radius", to_tensor=to_tensor)
+my_data = data("dft_2d")
+test_perc = 10
+n_train = int(len(my_data) * (100 - test_perc) / 100)
+train_data = my_data[0:n_train]
+val_data = my_data[n_train : len(my_data)]
+train_set = Jarvis2dSTEMDataset(
+    image_data=train_data, label_mode="radius", to_tensor=to_tensor
+)
+val_set = Jarvis2dSTEMDataset(
+    image_data=val_data, label_mode="radius", to_tensor=to_tensor
+)
+batch_size = 64
+checkpoint_dir = "."
+print("n_train", len(train_data))
+print("n_test", len(val_data))
+# train_set = Jarvis2dSTEMDataset(image_data=train_data, label_mode="radius",to_tensor=to_tensor)
 
-train_sampler = torch.utils.data.SubsetRandomSampler(list(range(16)))
-train_loader = torch.utils.data.DataLoader(j2d, batch_size=4, sampler=train_sampler)
+# j2d = Jarvis2dSTEMDataset(label_mode="radius", to_tensor=to_tensor)
 
-batch = next(iter(train_loader))
-x = model(batch["image"])
+# train_sampler = torch.utils.data.SubsetRandomSampler(list(range(16)))
+# train_loader = torch.utils.data.DataLoader(j2d, batch_size=4, sampler=train_sampler)
+
+# batch = next(iter(train_loader))
+# x = model(batch["image"])
+#
+
+train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size)
+val_loader = torch.utils.data.DataLoader(val_set, batch_size=batch_size)
 
 optimizer = torch.optim.AdamW(
     [
@@ -89,6 +117,20 @@ evaluator = create_supervised_evaluator(
     model, metrics=val_metrics, prepare_batch=prepare_batch
 )
 
+to_save = {
+    "model": model,
+    "optimizer": optimizer,
+    # "lr_scheduler": scheduler,
+    # "trainer": trainer,
+}
+handler = Checkpoint(
+    to_save,
+    DiskSaver(checkpoint_dir, create_dir=True, require_empty=False),
+    n_saved=2,
+    global_step_transform=lambda *_: trainer.state.epoch,
+)
+trainer.add_event_handler(Events.EPOCH_COMPLETED, handler)
+
 
 @trainer.on(Events.ITERATION_COMPLETED)
 def log_training_loss(trainer):
@@ -101,8 +143,14 @@ def log_training_results(trainer):
     evaluator.run(train_loader)
     metrics = evaluator.state.metrics
     print(
-        f"Training Results - Epoch: {trainer.state.epoch}  Avg accuracy: {metrics['accuracy']:.2f} Avg loss: {metrics['nll']:.2f}"
+        f"Training Results - Epoch: {trainer.state.epoch}  Avg accuracy: {metrics['accuracy']:.2f} Avg nll loss: {metrics['nll']:.2f}",
     )
+    evaluator.run(val_loader)
+    metrics = evaluator.state.metrics
+    print(
+        f"Val Results - Epoch: {trainer.state.epoch}  Avg accuracy: {metrics['accuracy']:.2f} Avg nll loss: {metrics['nll']:.2f}",
+    )
+    print()
 
 
-trainer.run(train_loader, max_epochs=100)
+trainer.run(train_loader, max_epochs=20)

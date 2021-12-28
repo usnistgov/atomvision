@@ -14,6 +14,7 @@ setuptools.setup(
         "scipy>=1.6.3",
         "jarvis-tools>=2021.07.19",
         "torch>=1.7.1",
+        "segmentation-models-pytorch>=0.2.1",
         # "torchvision>=0.10.0+cu111",
         "scikit-learn>=0.24.1",
         "matplotlib>=3.4.1",
