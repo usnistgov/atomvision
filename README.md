@@ -53,6 +53,8 @@ Citing
 
 Please cite the following if you happen to use JARVIS-Tools for a publication.
 
-https://www.nature.com/articles/s41524-020-00440-1
+1) https://www.nature.com/articles/s41524-020-00440-1
 
 Choudhary, K. et al. The joint automated repository for various integrated simulations (JARVIS) for data-driven materials design. npj Computational Materials, 6(1), 1-13 (2020).
+
+2) https://www.nature.com/articles/s41597-021-00824-y
