@@ -19,6 +19,7 @@ from skimage import measure
 from scipy.spatial import KDTree
 import networkx as nx
 
+import dgl
 
 LABEL_MODES = {"delta", "radius"}
 
@@ -96,7 +97,7 @@ class Jarvis2dSTEMDataset:
         a = Atoms.from_dict(row.atoms)
 
         image, label, pos, nb = self.stem.simulate_surface(
-            a, px_scale=self.px_scale, eps=0.6, rot=0, shift=[0, 0]
+            a, px_scale=self.px_scale, eps=0.6, rot=12.0, shift=[0, 0]
         )
 
         if self.label_mode == "radius":
@@ -170,7 +171,7 @@ class Jarvis2dSTEMGraphDataset(Jarvis2dSTEMDataset):
         px_scale: pixel size in angstroms
         label_mode: `delta` or `radius`, controls atom localization mask style
 
-        pixel_classifier: pretrained model for labeling pixels atoms/background
+
         debug: use ground truth label annotations
 
         Running the pixel classifier like this in the dataloader is not the most efficient
@@ -197,6 +198,7 @@ class Jarvis2dSTEMGraphDataset(Jarvis2dSTEMDataset):
             predicted_label = self.pixel_classifier(sample["image"])
 
         g, props = atom_mask_to_graph(predicted_label, sample["image"])
+        g = dgl.from_networkx(g, node_attrs=["pos", "intensity", "r"])
         sample["g"] = g
 
         return sample
