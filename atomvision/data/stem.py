@@ -154,6 +154,13 @@ def atom_mask_to_graph(label, image, cutoff=40):
     return g, props
 
 
+def bond_vectors(edges):
+    """Compute bond displacement vectors from pairwise atom coordinates."""
+    u = edges.src["pos"]
+    v = edges.dst["pos"]
+    return {"r": v - u}
+
+
 class Jarvis2dSTEMGraphDataset(Jarvis2dSTEMDataset):
     """Simulated STEM dataset (jarvis dft_2d): graph encoding"""
 
@@ -199,6 +206,10 @@ class Jarvis2dSTEMGraphDataset(Jarvis2dSTEMDataset):
 
         g, props = atom_mask_to_graph(predicted_label, sample["image"])
         g = dgl.from_networkx(g, node_attrs=["pos", "intensity", "r"])
+
+        # compute bond vectors from atomic coordinates
+        g.apply_edges(bond_vectors)
+
         sample["g"] = g
 
         return sample
