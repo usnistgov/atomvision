@@ -188,6 +188,12 @@ class Jarvis2dSTEMGraphDataset(Jarvis2dSTEMDataset):
 
         Depending on the quality of the label predictions, this could potentially need
         label smoothing as well.
+
+
+        example: initialize GCN-only ALIGNN with two atom input features
+        cfg = alignn.ALIGNNConfig(name="alignn", alignn_layers=0, atom_input_features=2)
+        model = alignn.ALIGNN(cfg)
+        model(g)
         """
         super().__init__(
             px_scale=px_scale, label_mode=label_mode, image_data=image_data
@@ -208,7 +214,16 @@ class Jarvis2dSTEMGraphDataset(Jarvis2dSTEMDataset):
         g = dgl.from_networkx(g, node_attrs=["pos", "intensity", "r"])
 
         # compute bond vectors from atomic coordinates
+        # store results in g.edata["r"]
         g.apply_edges(bond_vectors)
+
+        # unit conversion: -> angstrom
+        # px * angstrom/px -> angstrom
+        g.edata["r"] = (g.edata["r"] * self.px_scale).type(torch.float32)
+
+        # coalesce atom features
+        h = torch.stack((g.ndata["intensity"], g.ndata["r"]), dim=1)
+        g.ndata["atom_features"] = h.type(torch.float32)
 
         sample["g"] = g
 
