@@ -64,12 +64,21 @@ class Jarvis2dSTEMDataset:
         px_scale: float = 0.1,
         label_mode: str = "delta",
         image_data: Optional[List[Dict[str, Any]]] = None,
+        rotation_degrees: Optional[float] = None,
+        shift_angstrom: Optional[float] = None,
+        zoom_pct: Optional[float] = None,
         to_tensor: Optional[Callable] = None,
     ):
         """Simulated STEM dataset, jarvis-2d data
 
         px_scale: pixel size in angstroms
         label_mode: `delta` or `radius`, controls atom localization mask style
+
+        ## augmentation settings
+        rotation_degrees: if specified, sample from Unif(-rotation_degrees, rotation_degrees)
+        shift_angstrom: if specified, sample from Unif(-shift_angstrom, shift_angstrom)
+        zoom_pct: optional image scale factor: s *= 1 + (zoom_pct/100)
+
         """
 
         if label_mode not in LABEL_MODES:
@@ -78,6 +87,10 @@ class Jarvis2dSTEMDataset:
         self.px_scale = px_scale
         self.label_mode = label_mode
         self.to_tensor = to_tensor
+
+        self.rotation_degrees = rotation_degrees
+        self.shift_angstrom = shift_angstrom
+        self.zoom_pct = zoom_pct
 
         if image_data is not None:
             self.df = pd.DataFrame(image_data)
@@ -96,29 +109,57 @@ class Jarvis2dSTEMDataset:
         # print (row.jid)
         a = Atoms.from_dict(row.atoms)
 
+        # defaults:
+        rot = 0
+        shift_x = 0
+        shift_y = 0
+        px_scale = self.px_scale
+
+        # apply pre-rendering structure augmentation
+        if self.rotation_degrees is not None:
+            rot = np.random.uniform(-self.rotation_degrees, self.rotation_degrees)
+
+        if self.shift_angstrom is not None:
+            shift_x, shift_y = np.random.uniform(
+                -self.shift_angstrom, self.shift_angstrom, size=2
+            )
+
+        if self.zoom_pct is not None:
+            frac = self.zoom_pct / 100
+            px_scale *= 1 + np.random.uniform(-frac, frac)
+
         image, label, pos, nb = self.stem.simulate_surface(
-            a, px_scale=self.px_scale, eps=0.6, rot=12.0, shift=[0, 0]
+            a, px_scale=px_scale, eps=0.6, rot=rot, shift=[shift_x, shift_y]
         )
 
         if self.label_mode == "radius":
-            label = atomic_radius_mask(image.shape, pos, nb, self.px_scale)
+            label = atomic_radius_mask(image.shape, pos, nb, px_scale)
 
         if self.to_tensor is not None:
             image = self.to_tensor(torch.tensor(image))
-        sample = {"image": image, "label": torch.FloatTensor(label > 0), "id": row.jid}
+
+        sample = {
+            "image": image,
+            "label": torch.FloatTensor(label > 0),
+            "id": row.jid,
+            "px_scale": px_scale,
+        }
 
         # sample = {"image": image, "label": label, "coords": pos, "id": row.jid}
         return sample
 
 
-def atom_mask_to_graph(label, image, cutoff=40):
+def atom_mask_to_graph(label, image, px_angstrom=0.1, cutoff_angstrom=4):
     """Construct attributed atomistic graph from foreground mask
+
+    px_angstrom: pixel size in angstrom
 
     Performs connected component analysis on label image
     Computes region properties (centroids, radius, mean intensity)
     Constructs a radius graph of atoms within `cutoff` (px)
     """
     g = nx.Graph()
+    g.graph["px_angstrom"] = px_angstrom
 
     # connected component analysis
     rlab = measure.label(label)
@@ -141,15 +182,15 @@ def atom_mask_to_graph(label, image, cutoff=40):
 
     # add nodes with attributes to graph
     for id, row in props.iterrows():
-        pos = np.array([row["centroid-1"], row["centroid-0"], 0])
-        g.add_node(
-            id, pos=pos, intensity=row.mean_intensity, r=row.equivalent_diameter / 2
-        )
+        # px * angstrom/px -> angstrom
+        pos = np.array([row["centroid-1"], row["centroid-0"], 0]) * px_angstrom
+        eq_radius = 0.5 * row.equivalent_diameter * px_angstrom
+        g.add_node(id, pos=pos, intensity=row.mean_intensity, r=eq_radius)
 
     # construct radius graph edges via kd-tree
-    points = props.loc[:, ("centroid-1", "centroid-0")].values
+    points = props.loc[:, ("centroid-1", "centroid-0")].values * px_angstrom
     nbrs = KDTree(points)
-    g.add_edges_from(nbrs.query_pairs(cutoff))
+    g.add_edges_from(nbrs.query_pairs(cutoff_angstrom))
 
     return g, props
 
