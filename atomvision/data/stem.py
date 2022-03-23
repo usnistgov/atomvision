@@ -233,6 +233,7 @@ def to_dgl(g):
     # compute bond vectors from atomic coordinates
     # store results in g.edata["r"]
     g.apply_edges(bond_vectors)
+    g.edata["r"] = g.edata["r"].type(torch.float32)
 
     # # unit conversion: -> angstrom
     # # px * angstrom/px -> angstrom
