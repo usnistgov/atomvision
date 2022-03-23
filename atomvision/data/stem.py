@@ -106,6 +106,10 @@ class Jarvis2dSTEMDataset:
         self.val_ids = val_ids
         self.test_ids = test_ids
 
+        # label encoding dictionary: Dict[str, int]
+        self.class_labels = {key: id for id, key in enumerate(self.df.crys.unique())}
+        self.n_classes = len(self.class_labels)
+
     def split_dataset(self, val_frac: float = 0.1, test_frac: float = 0.1):
         N = len(self.df)
         n_val = int(N * val_frac)
@@ -166,10 +170,8 @@ class Jarvis2dSTEMDataset:
             "label": torch.FloatTensor(label > 0),
             "id": row.jid,
             "px_scale": px_scale,
-            "crys": row.crys,
+            "crys": self.class_labels[row.crys],
         }
-
-        # sample = {"image": image, "label": label, "coords": pos, "id": row.jid}
         return sample
 
 
@@ -235,10 +237,6 @@ def to_dgl(g):
     g.apply_edges(bond_vectors)
     g.edata["r"] = g.edata["r"].type(torch.float32)
 
-    # # unit conversion: -> angstrom
-    # # px * angstrom/px -> angstrom
-    # g.edata["r"] = (g.edata["r"] * px_scale).type(torch.float32)
-
     # coalesce atom features
     h = torch.stack((g.ndata["intensity"], g.ndata["r"]), dim=1)
     g.ndata["atom_features"] = h.type(torch.float32)
@@ -288,6 +286,6 @@ def build_prepare_graph_batch(model, prepare_image_batch):
         ]
         graphs = [to_dgl(g) for g in graphs]
 
-        return graphs, batch["crys"]
+        return dgl.batch(graphs), batch["crys"]
 
     return prepare_graph_batch
