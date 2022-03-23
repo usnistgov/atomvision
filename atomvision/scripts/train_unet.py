@@ -13,6 +13,10 @@ from torch import nn
 from torch.utils.data import DataLoader, SubsetRandomSampler
 
 from atomvision.data.stem import Jarvis2dSTEMDataset
+from atomvision.models.segmentation_utils import (
+    to_tensor_resnet18,
+    prepare_atom_localization_batch,
+)
 
 print("fine-tune a ResNet18 UNet")
 # fine-tune a ResNet18 starting from an imagenet encoder
@@ -26,36 +30,6 @@ model = smp.Unet(
 )
 preprocess_input = get_preprocessing_fn("resnet18", pretrained="imagenet")
 
-
-def to_tensor(x):
-    """Image to tensor
-
-    normalize to (0, 1)
-    apply imagenet preprocessing
-    permute dims (H, W, C) to (C, H, W)
-    convert to float
-    """
-    x = x / x.max()
-    x = preprocess_input(x.unsqueeze(-1))
-    x = x.permute(2, 0, 1)
-    return x.type(torch.FloatTensor)
-
-
-def prepare_batch(
-    batch: Dict[str, torch.Tensor],
-    device=None,
-    non_blocking=False,
-):
-    """Extract image and mask from batch dictionary."""
-    image, label, ids = batch["image"], batch["label"], batch["id"]
-    batch = (
-        image.to(device, non_blocking=non_blocking),
-        label.unsqueeze(1).to(device, non_blocking=non_blocking),
-    )
-
-    return batch
-
-
 checkpoint_dir = Path("models/test")
 
 
@@ -64,7 +38,7 @@ j2d = Jarvis2dSTEMDataset(
     rotation_degrees=90,
     shift_angstrom=0.5,
     zoom_pct=5,
-    to_tensor=to_tensor,
+    to_tensor=to_tensor_resnet18,
 )
 
 batch_size = 32
@@ -104,10 +78,10 @@ val_metrics = {
 }
 
 trainer = create_supervised_trainer(
-    model, optimizer, criterion, prepare_batch=prepare_batch
+    model, optimizer, criterion, prepare_batch=prepare_atom_localization_batch
 )
 evaluator = create_supervised_evaluator(
-    model, metrics=val_metrics, prepare_batch=prepare_batch
+    model, metrics=val_metrics, prepare_batch=prepare_atom_localization_batch
 )
 
 to_save = {
@@ -148,4 +122,4 @@ def log_training_results(trainer):
     print()
 
 
-# trainer.run(train_loader, max_epochs=20)
+trainer.run(train_loader, max_epochs=20)

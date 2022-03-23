@@ -1,6 +1,9 @@
 """Simulated STEM pytorch dataloader for atom localization and crystal classification."""
+import dgl
 import torch
+from typing import Dict
 from torch.utils.data import Dataset, DataLoader
+from torch.utils.data._utils.collate import default_collate
 
 import numpy as np
 import pandas as pd
@@ -19,7 +22,6 @@ from skimage import measure
 from scipy.spatial import KDTree
 import networkx as nx
 
-import dgl
 
 LABEL_MODES = {"delta", "radius"}
 
@@ -224,70 +226,67 @@ def bond_vectors(edges):
     return {"r": v - u}
 
 
-class Jarvis2dSTEMGraphDataset(Jarvis2dSTEMDataset):
-    """Simulated STEM dataset (jarvis dft_2d): graph encoding"""
+def to_dgl(g):
+    """Construct atom detection DGLGraph from networkx graph."""
+    g = dgl.from_networkx(g, node_attrs=["pos", "intensity", "r"])
 
-    def __init__(
-        self,
-        px_scale: float = 0.1,
-        label_mode: str = "delta",
-        image_data: Optional[List[Dict[str, Any]]] = None,
-        to_tensor: Optional[Callable] = None,
-        pixel_classifier=None,
-        debug=False,
+    # compute bond vectors from atomic coordinates
+    # store results in g.edata["r"]
+    g.apply_edges(bond_vectors)
+
+    # # unit conversion: -> angstrom
+    # # px * angstrom/px -> angstrom
+    # g.edata["r"] = (g.edata["r"] * px_scale).type(torch.float32)
+
+    # coalesce atom features
+    h = torch.stack((g.ndata["intensity"], g.ndata["r"]), dim=1)
+    g.ndata["atom_features"] = h.type(torch.float32)
+
+    return g
+
+
+def build_prepare_graph_batch(model, prepare_image_batch):
+    """Close over atom localization model and image batch prep.
+
+    Running the pixel classifier like this in the dataloader is not the most efficient
+    It might be viable to put this inside a closure used for a dataloader collate_fn
+    This would assemble the full batch, run the pixel classifier, and then construct
+    the atomistic graphs. Hopefully this is all done during DataLoader prefetch still.
+
+    Depending on the quality of the label predictions, this could potentially need
+    label smoothing as well.
+
+
+    example: initialize GCN-only ALIGNN with two atom input features
+    cfg = alignn.ALIGNNConfig(name="alignn", alignn_layers=0, atom_input_features=2)
+    model = alignn.ALIGNN(cfg)
+    model(g)
+    """
+
+    def prepare_graph_batch(
+        batch: Dict[str, torch.Tensor],
+        device=None,
+        non_blocking=False,
     ):
-        """Simulated STEM dataset, jarvis-2d data
+        """Extract image and mask from batch dictionary."""
+        x, mask = prepare_image_batch(batch, device=device, non_blocking=non_blocking)
 
-        px_scale: pixel size in angstroms
-        label_mode: `delta` or `radius`, controls atom localization mask style
+        with torch.no_grad():
+            yhat = model(x).detach()
 
+        predicted_mask = torch.sigmoid(yhat.squeeze()).numpy() > 0.5
 
-        debug: use ground truth label annotations
+        batch_size = x.size(0)
+        graphs = [
+            atom_mask_to_graph(
+                predicted_mask[idx],
+                batch["image"][idx, 0].numpy(),
+                batch["px_scale"][idx].item(),
+            )[0]
+            for idx in range(batch_size)
+        ]
+        graphs = [to_dgl(g) for g in graphs]
 
-        Running the pixel classifier like this in the dataloader is not the most efficient
-        It might be viable to put this inside a closure used for a dataloader collate_fn
-        This would assemble the full batch, run the pixel classifier, and then construct
-        the atomistic graphs. Hopefully this is all done during DataLoader prefetch still.
+        return graphs, batch["crys"]
 
-        Depending on the quality of the label predictions, this could potentially need
-        label smoothing as well.
-
-
-        example: initialize GCN-only ALIGNN with two atom input features
-        cfg = alignn.ALIGNNConfig(name="alignn", alignn_layers=0, atom_input_features=2)
-        model = alignn.ALIGNN(cfg)
-        model(g)
-        """
-        super().__init__(
-            px_scale=px_scale, label_mode=label_mode, image_data=image_data
-        )
-        self.pixel_classifier = pixel_classifier
-        self.debug = debug
-
-    def __getitem__(self, idx):
-        """Sample: image, label mask, atomic coords, numbers, structure ids."""
-        sample = super().__getitem__(idx)
-
-        if self.debug:
-            predicted_label = sample["label"]
-        else:
-            predicted_label = self.pixel_classifier(sample["image"])
-
-        g, props = atom_mask_to_graph(predicted_label, sample["image"])
-        g = dgl.from_networkx(g, node_attrs=["pos", "intensity", "r"])
-
-        # compute bond vectors from atomic coordinates
-        # store results in g.edata["r"]
-        g.apply_edges(bond_vectors)
-
-        # unit conversion: -> angstrom
-        # px * angstrom/px -> angstrom
-        g.edata["r"] = (g.edata["r"] * self.px_scale).type(torch.float32)
-
-        # coalesce atom features
-        h = torch.stack((g.ndata["intensity"], g.ndata["r"]), dim=1)
-        g.ndata["atom_features"] = h.type(torch.float32)
-
-        sample["g"] = g
-
-        return sample
+    return prepare_graph_batch
