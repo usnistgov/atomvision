@@ -99,6 +99,27 @@ class Jarvis2dSTEMDataset:
 
         self.stem = STEMConv(output_size=[256, 256])
 
+        train_ids, val_ids, test_ids = self.split_dataset()
+        self.train_ids = train_ids
+        self.val_ids = val_ids
+        self.test_ids = test_ids
+
+    def split_dataset(self, val_frac: float = 0.1, test_frac: float = 0.1):
+        N = len(self.df)
+        n_val = int(N * val_frac)
+        n_test = int(N * test_frac)
+        n_train = N - (n_val + n_test)
+
+        # set a consistent train/val/test split
+        torch.manual_seed(0)
+        shuf = torch.randperm(N)
+        torch.random.seed()
+        train_ids = shuf[:n_train].tolist()
+        val_ids = shuf[n_train : n_train + n_val].tolist()
+        test_ids = shuf[n_train + n_val : n_train + n_val + n_test].tolist()
+
+        return train_ids, val_ids, test_ids
+
     def __len__(self):
         """Datset size: len(jarvis_2d)"""
         return self.df.shape[0]
@@ -143,6 +164,7 @@ class Jarvis2dSTEMDataset:
             "label": torch.FloatTensor(label > 0),
             "id": row.jid,
             "px_scale": px_scale,
+            "crys": row.crys,
         }
 
         # sample = {"image": image, "label": label, "coords": pos, "id": row.jid}
