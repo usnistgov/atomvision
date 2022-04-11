@@ -18,7 +18,10 @@ from atomvision.models.segmentation_utils import (
     prepare_atom_localization_batch,
 )
 
-print("fine-tune a ResNet18 UNet")
+
+checkpoint_dir = Path("models/test")
+
+# model configuration
 # fine-tune a ResNet18 starting from an imagenet encoder
 model = smp.Unet(
     encoder_name="resnet18",
@@ -30,8 +33,9 @@ model = smp.Unet(
 )
 preprocess_input = get_preprocessing_fn("resnet18", pretrained="imagenet")
 
-checkpoint_dir = Path("models/test")
 
+# dataloader specification
+batch_size = 32
 
 j2d = Jarvis2dSTEMDataset(
     label_mode="radius",
@@ -40,8 +44,6 @@ j2d = Jarvis2dSTEMDataset(
     zoom_pct=5,
     to_tensor=to_tensor_resnet18,
 )
-
-batch_size = 32
 
 train_loader = DataLoader(
     j2d,
@@ -54,18 +56,29 @@ val_loader = DataLoader(
 )
 
 
+# optimization setup
+epochs = 100
+lr = 1e-3
+lr_finetune = 3e-5
+
+criterion = nn.BCEWithLogitsLoss()
 optimizer = torch.optim.AdamW(
     [
-        {"params": model.encoder.parameters(), "lr": 3e-5},
+        {"params": model.encoder.parameters(), "lr": lr_finetune},
         {"params": model.decoder.parameters()},
         {"params": model.segmentation_head.parameters()},
     ],
-    lr=1e-3,
+    lr=lr,
+)
+scheduler = torch.optim.lr_scheduler.OneCycleLR(
+    optimizer,
+    max_lr=[lr_finetune, lr, lr],
+    epochs=epochs,
+    steps_per_epoch=len(train_loader),
 )
 
-criterion = nn.BCEWithLogitsLoss()
 
-
+# performance tracking
 def acc_transform(output):
     y_pred, y_true = output
     pred = torch.sigmoid(y_pred) > 0.5
@@ -84,42 +97,43 @@ evaluator = create_supervised_evaluator(
     model, metrics=val_metrics, prepare_batch=prepare_atom_localization_batch
 )
 
+# apply learning rate scheduler
+trainer.add_event_handler(Events.ITERATION_COMPLETED, lambda engine: scheduler.step())
+
+# checkpointing
 to_save = {
     "model": model,
     "optimizer": optimizer,
-    # "lr_scheduler": scheduler,
-    # "trainer": trainer,
+    "lr_scheduler": scheduler,
 }
-handler = Checkpoint(
+checkpoint_handler = Checkpoint(
     to_save,
     DiskSaver(checkpoint_dir, create_dir=True, require_empty=False),
     n_saved=2,
     global_step_transform=lambda *_: trainer.state.epoch,
 )
-trainer.add_event_handler(Events.EPOCH_COMPLETED, handler)
+trainer.add_event_handler(Events.EPOCH_COMPLETED, checkpoint_handler)
 
 
 @trainer.on(Events.ITERATION_COMPLETED)
-def log_training_loss(trainer):
+def log_training_loss(engine):
     print(
-        f"Epoch[{trainer.state.epoch}.{trainer.state.iteration}] Loss: {trainer.state.output:.2f}"
+        f"Epoch[{engine.state.epoch}.{engine.state.iteration}] Loss: {engine.state.output:.2f}"
     )
 
 
 @trainer.on(Events.EPOCH_COMPLETED)
-def log_training_results(trainer):
+def log_train_val_results(engine):
     print("evaluating")
-    evaluator.run(train_loader)
-    metrics = evaluator.state.metrics
-    print(
-        f"Training Results - Epoch: {trainer.state.epoch}  Avg accuracy: {metrics['accuracy']:.2f} Avg nll loss: {metrics['nll']:.2f}",
-    )
-    evaluator.run(val_loader)
-    metrics = evaluator.state.metrics
-    print(
-        f"Val Results - Epoch: {trainer.state.epoch}  Avg accuracy: {metrics['accuracy']:.2f} Avg nll loss: {metrics['nll']:.2f}",
-    )
-    print()
+    epoch = engine.state.epoch
+    for phase, loader in zip(("train", "val"), (train_loader, val_loader)):
+        evaluator.run(loader)
+        metrics = evaluator.state.metrics
+        acc = metrics["accuracy"]
+        nll = metrics["nll"]
+        print(
+            f"{phase} results - Epoch: {epoch}  Avg accuracy: {acc:.2f} Avg nll loss: {nll:.2f}",
+        )
 
 
 trainer.run(train_loader, max_epochs=20)
