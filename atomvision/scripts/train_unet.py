@@ -58,7 +58,7 @@ def get_train_val_loaders(config: Config = Config()):
     train_loader = DataLoader(
         j2d,
         batch_size=batch_size,
-        sampler=SubsetRandomSampler(j2d.train_ids[:64]),
+        sampler=SubsetRandomSampler(j2d.train_ids),
         num_workers=config.training.prefetch_workers,
         pin_memory=True,
         drop_last=True,
@@ -66,7 +66,7 @@ def get_train_val_loaders(config: Config = Config()):
     val_loader = DataLoader(
         j2d,
         batch_size=batch_size,
-        sampler=SubsetRandomSampler(j2d.val_ids[:64]),
+        sampler=SubsetRandomSampler(j2d.val_ids),
         num_workers=config.training.prefetch_workers,
         pin_memory=True,
     )
