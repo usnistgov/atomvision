@@ -1,5 +1,7 @@
+import json
 import typer
-from typing import Dict, Optional
+import pydantic
+from typing import Dict, List, Optional
 from pathlib import Path
 
 import segmentation_models_pytorch as smp
@@ -22,48 +24,76 @@ from atomvision.models.segmentation_utils import (
 )
 
 
-def get_train_val_loaders(config):
+class DatasetConfig(pydantic.BaseSettings):
+    rotation_degrees: float = 90
+    shift_angstrom: float = 0.5
+    zoom_pct: float = 5
+
+
+class TrainingConfig(pydantic.BaseSettings):
+    batch_size: int = 32
+    prefetch_workers: int = 4
+    epochs: int = 100
+    learning_rate: float = 1e-3
+    learning_rate_finetune: float = 3e-5
+
+
+class Config(pydantic.BaseSettings):
+    dataset: DatasetConfig = DatasetConfig()
+    training: TrainingConfig = TrainingConfig()
+
+
+def get_train_val_loaders(config: Config = Config()):
     """UNet dataloader specification."""
-    batch_size = 32
+    batch_size = config.training.batch_size
 
     j2d = Jarvis2dSTEMDataset(
         label_mode="radius",
-        rotation_degrees=90,
-        shift_angstrom=0.5,
-        zoom_pct=5,
+        rotation_degrees=config.dataset.rotation_degrees,
+        shift_angstrom=config.dataset.shift_angstrom,
+        zoom_pct=config.dataset.zoom_pct,
         to_tensor=to_tensor_resnet18,
     )
 
     train_loader = DataLoader(
         j2d,
         batch_size=batch_size,
-        sampler=SubsetRandomSampler(j2d.train_ids),
+        sampler=SubsetRandomSampler(j2d.train_ids[:64]),
+        num_workers=config.training.prefetch_workers,
+        pin_memory=True,
         drop_last=True,
     )
     val_loader = DataLoader(
-        j2d, batch_size=batch_size, sampler=SubsetRandomSampler(j2d.val_ids)
+        j2d,
+        batch_size=batch_size,
+        sampler=SubsetRandomSampler(j2d.val_ids[:64]),
+        num_workers=config.training.prefetch_workers,
+        pin_memory=True,
     )
 
     return train_loader, val_loader
 
 
-def setup_unet_optimizer(model, train_loader, config):
-    epochs = 100
-    lr = 1e-3
-    lr_finetune = 3e-5
-
+def setup_unet_optimizer(
+    model, train_loader, config: TrainingConfig = TrainingConfig()
+):
+    """Configure Unet optimizer and scheduler for fine-tuning."""
     optimizer = torch.optim.AdamW(
         [
-            {"params": model.encoder.parameters(), "lr": lr_finetune},
+            {"params": model.encoder.parameters(), "lr": config.learning_rate_finetune},
             {"params": model.decoder.parameters()},
             {"params": model.segmentation_head.parameters()},
         ],
-        lr=lr,
+        lr=config.learning_rate,
     )
     scheduler = torch.optim.lr_scheduler.OneCycleLR(
         optimizer,
-        max_lr=[lr_finetune, lr, lr],
-        epochs=epochs,
+        max_lr=[
+            config.learning_rate_finetune,
+            config.learning_rate,
+            config.learning_rate,
+        ],
+        epochs=config.epochs,
         steps_per_epoch=len(train_loader),
     )
 
@@ -83,20 +113,31 @@ def log_training_loss(engine):
     )
 
 
-def setup_evaluation(evaluator, train_loader, val_loader):
+def setup_evaluation(evaluator, dataloaders: Dict[str, DataLoader], metrics: List[str]):
+    """Close over history dictionary history: Dict[str, Dict[str, List[float]]]"""
+
+    history = {
+        "train": {m: [] for m in metrics},
+        "validation": {m: [] for m in metrics},
+    }
+
     def log_train_val_results(engine):
-        print("evaluating")
         epoch = engine.state.epoch
-        for phase, loader in zip(("train", "val"), (train_loader, val_loader)):
+
+        for tag, loader in dataloaders.items():
             evaluator.run(loader)
             metrics = evaluator.state.metrics
+
+            for m in history[tag].keys():
+                history[tag][m].append(metrics[m])
+
             acc = metrics["accuracy"]
             nll = metrics["nll"]
             print(
-                f"{phase} results - Epoch: {epoch}  Avg accuracy: {acc:.2f} Avg nll loss: {nll:.2f}",
+                f"{tag} results - Epoch: {epoch}  Avg accuracy: {acc:.2f} Avg nll loss: {nll:.2f}",
             )
 
-    return log_train_val_results
+    return log_train_val_results, history
 
 
 def main(
@@ -106,6 +147,9 @@ def main(
 ):
     print(config)
     checkpoint_dir = config.parent
+    with open(config, "r") as f:
+        config = Config(**json.load(f))
+    print(config)
 
     device = "cpu"
     if torch.cuda.is_available():
@@ -120,15 +164,16 @@ def main(
         in_channels=3,
         classes=1,
     )
+    model.to(device)
     # preprocess_input = get_preprocessing_fn("resnet18", pretrained="imagenet")
 
     # data and optimizer setup
     train_loader, val_loader = get_train_val_loaders(config)
-    optimizer, scheduler = setup_unet_optimizer(model, train_loader, config)
+    optimizer, scheduler = setup_unet_optimizer(model, train_loader, config.training)
 
     # task and evaluation setup
     criterion = nn.BCEWithLogitsLoss()
-    val_metrics = {
+    metrics = {
         "accuracy": Accuracy(output_transform=accuracy_transform),
         "nll": Loss(criterion),
     }
@@ -142,13 +187,13 @@ def main(
     )
     evaluator = create_supervised_evaluator(
         model,
-        metrics=val_metrics,
+        metrics=metrics,
         prepare_batch=prepare_atom_localization_batch,
         device=device,
     )
 
-    trainer.logger = setup_logger("trainer")
-    evaluator.logger = setup_logger("trainer")
+    trainer.logger = setup_logger("trainer", filepath=checkpoint_dir / "train.log")
+    evaluator.logger = setup_logger("trainer", filepath=checkpoint_dir / "train.log")
 
     # apply learning rate scheduler
     trainer.add_event_handler(
@@ -165,12 +210,20 @@ def main(
     trainer.add_event_handler(Events.EPOCH_COMPLETED, checkpoint_handler)
 
     trainer.add_event_handler(Events.ITERATION_COMPLETED, log_training_loss)
-    trainer.add_event_handler(
-        Events.EPOCH_COMPLETED, setup_evaluation(evaluator, train_loader, val_loader)
-    )
 
-    trainer.run(train_loader, max_epochs=20)
+    # configure simple history tracking...
+
+    dataloaders = {"train": train_loader, "validation": val_loader}
+    evaluation_handler, history = setup_evaluation(
+        evaluator, dataloaders, metrics.keys()
+    )
+    trainer.add_event_handler(Events.EPOCH_COMPLETED, evaluation_handler)
+
+    trainer.run(train_loader, max_epochs=config.training.epochs)
+
+    torch.save(history, checkpoint_dir / "metrics.pt")
+    return history
 
 
 if __name__ == "__main__":
-    typer.run(main)
+    history = typer.run(main)
