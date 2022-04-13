@@ -1,7 +1,7 @@
 import json
 import typer
 import pydantic
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Literal
 from pathlib import Path
 
 import segmentation_models_pytorch as smp
@@ -17,20 +17,22 @@ from segmentation_models_pytorch.encoders import get_preprocessing_fn
 from torch import nn
 from torch.utils.data import DataLoader, SubsetRandomSampler
 
-from atomvision.data.stem import Jarvis2dSTEMDataset
+from alignn.models import alignn
+
+from atomvision.data.stem import Jarvis2dSTEMDataset, build_prepare_graph_batch
 from atomvision.models.segmentation_utils import (
     to_tensor_resnet18,
     prepare_atom_localization_batch,
 )
 
 
-class DatasetConfig(pydantic.BaseSettings):
+class DatasetSettings(pydantic.BaseSettings):
     rotation_degrees: float = 90
     shift_angstrom: float = 0.5
     zoom_pct: float = 5
 
 
-class TrainingConfig(pydantic.BaseSettings):
+class TrainingSettings(pydantic.BaseSettings):
     batch_size: int = 32
     prefetch_workers: int = 4
     epochs: int = 100
@@ -38,9 +40,18 @@ class TrainingConfig(pydantic.BaseSettings):
     learning_rate_finetune: float = 3e-5
 
 
+class LocalizationSettings(pydantic.BaseSettings):
+    encoder_weights: str = "imagenet"
+    checkpoint: str = "checkpoint"
+
+
 class Config(pydantic.BaseSettings):
-    dataset: DatasetConfig = DatasetConfig()
-    training: TrainingConfig = TrainingConfig()
+    dataset: DatasetSettings = DatasetSettings()
+    training: TrainingSettings = TrainingSettings()
+    localization: LocalizationSettings = LocalizationSettings()
+    gcn: alignn.ALIGNNConfig = alignn.ALIGNNConfig(
+        name="alignn", alignn_layers=0, atom_input_features=2, output_features=6
+    )
 
 
 def get_train_val_loaders(config: Config = Config()):
@@ -58,7 +69,7 @@ def get_train_val_loaders(config: Config = Config()):
     train_loader = DataLoader(
         j2d,
         batch_size=batch_size,
-        sampler=SubsetRandomSampler(j2d.train_ids),
+        sampler=SubsetRandomSampler(j2d.train_ids[:64]),
         num_workers=config.training.prefetch_workers,
         pin_memory=True,
         drop_last=True,
@@ -66,7 +77,7 @@ def get_train_val_loaders(config: Config = Config()):
     val_loader = DataLoader(
         j2d,
         batch_size=batch_size,
-        sampler=SubsetRandomSampler(j2d.val_ids),
+        sampler=SubsetRandomSampler(j2d.val_ids[:64]),
         num_workers=config.training.prefetch_workers,
         pin_memory=True,
     )
@@ -75,7 +86,7 @@ def get_train_val_loaders(config: Config = Config()):
 
 
 def setup_unet_optimizer(
-    model, train_loader, config: TrainingConfig = TrainingConfig()
+    model, train_loader, config: TrainingSettings = TrainingSettings()
 ):
     """Configure Unet optimizer and scheduler for fine-tuning."""
     optimizer = torch.optim.AdamW(
@@ -100,11 +111,35 @@ def setup_unet_optimizer(
     return optimizer, scheduler
 
 
-# performance tracking
-def accuracy_transform(output):
-    y_pred, y_true = output
-    pred = torch.sigmoid(y_pred) > 0.5
-    return pred.type(torch.float32), y_true
+def setup_gcn_optimizer(
+    model, train_loader, config: TrainingSettings = TrainingSettings()
+):
+    """Configure ALIGNN optimizer and scheduler for fine-tuning."""
+    optimizer = torch.optim.AdamW(model.parameters(), lr=config.learning_rate)
+
+    scheduler = torch.optim.lr_scheduler.OneCycleLR(
+        optimizer,
+        max_lr=config.learning_rate,
+        epochs=config.epochs,
+        steps_per_epoch=len(train_loader),
+    )
+
+    return optimizer, scheduler
+
+
+from functools import partial
+
+
+def setup_accuracy(mode: Literal["binary", "categorical"]):
+    softmax = partial(torch.softmax, dim=1)
+    link = {"binary": torch.sigmoid, "categorical": softmax}[mode]
+
+    def accuracy_transform(output):
+        y_pred, y_true = output
+        pred = link(y_pred) > 0.5
+        return pred.type(torch.float32), y_true
+
+    return accuracy_transform
 
 
 def log_training_loss(engine):
@@ -140,12 +175,118 @@ def setup_evaluation(evaluator, dataloaders: Dict[str, DataLoader], metrics: Lis
     return log_train_val_results, history
 
 
-def main(
+cli = typer.Typer()
+
+
+@cli.command()
+def gcn(
     config: Optional[Path] = typer.Argument(
         Path("models/test/config.json"), exists=True, file_okay=True, dir_okay=False
     )
 ):
+
+    checkpoint_dir = config.parent
+    with open(config, "r") as f:
+        config = Config(**json.load(f))
     print(config)
+
+    device = "cpu"
+    if torch.cuda.is_available():
+        device = "cuda"
+
+    # model setup: fine-tune a ResNet18 starting from an imagenet encoder
+    localization_model = smp.Unet(
+        encoder_name="resnet18",
+        encoder_weights="imagenet",
+        encoder_depth=3,
+        decoder_channels=(64, 32, 16),
+        in_channels=3,
+        classes=1,
+    )
+
+    localization_checkpoint = (
+        checkpoint_dir / f"{config.localization.checkpoint}_{config.training.epochs}.pt"
+    )
+    state = torch.load(localization_checkpoint, map_location=torch.device("cpu"))
+    localization_model.load_state_dict(state["model"])
+
+    prepare_batch = build_prepare_graph_batch(
+        localization_model, prepare_atom_localization_batch
+    )
+
+    model = alignn.ALIGNN(config.gcn)
+    model.to(device)
+
+    # data and optimizer setup
+    train_loader, val_loader = get_train_val_loaders(config)
+    optimizer, scheduler = setup_gcn_optimizer(model, train_loader, config.training)
+
+    # task and evaluation setup
+    criterion = nn.CrossEntropyLoss()
+    metrics = {
+        "accuracy": Accuracy(output_transform=setup_accuracy(mode="categorical")),
+        "nll": Loss(criterion),
+    }
+
+    trainer = create_supervised_trainer(
+        model,
+        optimizer,
+        criterion,
+        prepare_batch=prepare_batch,
+        device=device,
+    )
+    evaluator = create_supervised_evaluator(
+        model,
+        metrics=metrics,
+        prepare_batch=prepare_batch,
+        device=device,
+    )
+
+    trainer.logger = setup_logger("trainer", filepath=checkpoint_dir / "train_gcn.log")
+    evaluator.logger = setup_logger(
+        "trainer", filepath=checkpoint_dir / "train_gcn.log"
+    )
+
+    # apply learning rate scheduler
+    trainer.add_event_handler(
+        Events.ITERATION_COMPLETED, lambda engine: scheduler.step()
+    )
+
+    # configure evaluation and setup
+    checkpoint_handler = Checkpoint(
+        {"model": model, "optimizer": optimizer, "lr_scheduler": scheduler},
+        DiskSaver(checkpoint_dir, create_dir=True, require_empty=False),
+        filename_prefix="gcn",
+        n_saved=2,
+        global_step_transform=lambda *_: trainer.state.epoch,
+    )
+    trainer.add_event_handler(Events.EPOCH_COMPLETED, checkpoint_handler)
+
+    trainer.add_event_handler(Events.ITERATION_COMPLETED, log_training_loss)
+
+    # configure simple history tracking...
+
+    dataloaders = {"train": train_loader, "validation": val_loader}
+    evaluation_handler, history = setup_evaluation(
+        evaluator, dataloaders, metrics.keys()
+    )
+    trainer.add_event_handler(Events.EPOCH_COMPLETED, evaluation_handler)
+
+    trainer.run(train_loader, max_epochs=config.training.epochs)
+
+    torch.save(history, checkpoint_dir / "gcn_metrics.pt")
+    return history
+
+
+@cli.command()
+def localization(
+    config: Optional[Path] = typer.Argument(
+        Path("models/test/config.json"), exists=True, file_okay=True, dir_okay=False
+    )
+):
+
+    prepare_batch = prepare_atom_localization_batch
+
     checkpoint_dir = config.parent
     with open(config, "r") as f:
         config = Config(**json.load(f))
@@ -165,7 +306,6 @@ def main(
         classes=1,
     )
     model.to(device)
-    # preprocess_input = get_preprocessing_fn("resnet18", pretrained="imagenet")
 
     # data and optimizer setup
     train_loader, val_loader = get_train_val_loaders(config)
@@ -174,7 +314,7 @@ def main(
     # task and evaluation setup
     criterion = nn.BCEWithLogitsLoss()
     metrics = {
-        "accuracy": Accuracy(output_transform=accuracy_transform),
+        "accuracy": Accuracy(output_transform=setup_accuracy(mode="binary")),
         "nll": Loss(criterion),
     }
 
@@ -182,13 +322,13 @@ def main(
         model,
         optimizer,
         criterion,
-        prepare_batch=prepare_atom_localization_batch,
+        prepare_batch=prepare_batch,
         device=device,
     )
     evaluator = create_supervised_evaluator(
         model,
         metrics=metrics,
-        prepare_batch=prepare_atom_localization_batch,
+        prepare_batch=prepare_batch,
         device=device,
     )
 
@@ -221,9 +361,9 @@ def main(
 
     trainer.run(train_loader, max_epochs=config.training.epochs)
 
-    torch.save(history, checkpoint_dir / "metrics.pt")
+    torch.save(history, checkpoint_dir / "localization_metrics.pt")
     return history
 
 
 if __name__ == "__main__":
-    history = typer.run(main)
+    cli()
