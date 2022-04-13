@@ -271,7 +271,7 @@ def build_prepare_graph_batch(model, prepare_image_batch):
         x, mask = prepare_image_batch(batch, device=device, non_blocking=non_blocking)
 
         with torch.no_grad():
-            yhat = model(x).detach()
+            yhat = model(x).detach().cpu()
 
         predicted_mask = torch.sigmoid(yhat.squeeze()).numpy() > 0.5
 
@@ -286,6 +286,6 @@ def build_prepare_graph_batch(model, prepare_image_batch):
         ]
         graphs = [to_dgl(g) for g in graphs]
 
-        return dgl.batch(graphs), batch["crys"]
+        return dgl.batch(graphs).to(device), batch["crys"].to(device)
 
     return prepare_graph_batch
