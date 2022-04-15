@@ -174,6 +174,56 @@ class Jarvis2dSTEMDataset:
         }
         return sample
 
+    def get_rotation_series(self, idx, angles=np.linspace(0, 90, 32)):
+        """helper for evaluating models through a series of augmentations.
+
+        ```python
+        samples = dataset.get_rotation_series(0)
+        angle_batch = dataloader.collate_fn(samples)
+        graphs, targets = prepare_batch(angle_batch)
+        ps = gnn(a_graphs)
+
+        ```
+        """
+        row = self.df.iloc[idx]
+        # print (row.jid)
+        a = Atoms.from_dict(row.atoms)
+
+        # defaults:
+        rot = 0
+        shift_x = 0
+        shift_y = 0
+        px_scale = self.px_scale
+
+        # apply pre-rendering structure augmentation
+        if self.shift_angstrom is not None:
+            shift_x, shift_y = np.random.uniform(
+                -self.shift_angstrom, self.shift_angstrom, size=2
+            )
+
+        samples = []
+        for angle in angles:
+            image, label, pos, nb = self.stem.simulate_surface(
+                a, px_scale=px_scale, eps=0.6, rot=angle, shift=[shift_x, shift_y]
+            )
+
+            if self.label_mode == "radius":
+                label = atomic_radius_mask(image.shape, pos, nb, px_scale)
+
+            if self.to_tensor is not None:
+                image = self.to_tensor(torch.tensor(image))
+
+            sample = {
+                "image": image,
+                "label": torch.FloatTensor(label > 0),
+                "id": row.jid,
+                "px_scale": px_scale,
+                "crys": self.class_labels[row.crys],
+            }
+            samples.append(sample)
+
+        return samples
+
 
 def atom_mask_to_graph(label, image, px_angstrom=0.1, cutoff_angstrom=4):
     """Construct attributed atomistic graph from foreground mask
