@@ -16,7 +16,7 @@ setuptools.setup(
         "alignn",
         "scikit-image",
         "torch>=1.7.1",
-        "pyparsing>=2.2.1",
+        "pyparsing==2.2.1",
         "typer",
         "segmentation-models-pytorch>=0.2.1",
         # "torchvision>=0.10.0+cu111",
