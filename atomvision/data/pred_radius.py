@@ -18,8 +18,8 @@ if torch.cuda.is_available():
 model.load_state_dict(torch.load("checkpoint_rad.pth", map_location=device))
 model.eval()
 model.to(device)
-for l in model.base_layers:
-    for param in l.parameters():
+for bl in model.base_layers:
+    for param in bl.parameters():
         param.requires_grad = False
 
 my_data = data("dft_2d")[0:6]

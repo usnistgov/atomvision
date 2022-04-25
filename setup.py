@@ -6,14 +6,18 @@ with open("README.md", "r", encoding="utf-8") as fh:
 setuptools.setup(
     name="atomvision",  # Replace with your own username
     version="2021.10.11",
-    author="Kamal Choudhary",
+    author="Kamal Choudhary, Brian DeCost",
     author_email="kamal.choudhary@nist.gov",
     description="atomvision",
     install_requires=[
         "numpy>=1.19.5",
         "scipy>=1.6.3",
         "jarvis-tools>=2021.07.19",
+        "alignn",
+        "scikit-image",
         "torch>=1.7.1",
+        "pyparsing==2.2.1",
+        "typer",
         "segmentation-models-pytorch>=0.2.1",
         # "torchvision>=0.10.0+cu111",
         "scikit-learn>=0.24.1",

@@ -52,4 +52,6 @@ def mobilenet(num_labels=5, in_features=1024):
 def squeezenet(num_labels=5, in_features=512, kernel_size=(1, 1)):
     """Get squeezenet model."""
     model = models.squeezenet1_1(pretrained=True)
-    model.classifier[1] = nn.Conv2d(in_features, num_labels, kernel_size=kernel_size)
+    model.classifier[1] = nn.Conv2d(
+        in_features, num_labels, kernel_size=kernel_size
+    )

@@ -1,9 +1,11 @@
 # author: xbresson
-# code link: https://github.com/xbresson/CE7454_2019/blob/master/codes/labs_lecture14/lab01_ChebGCNs/lib/grid_graph.py
+# code link: https://github.com/xbresson/CE7454_2019/blob
+# /master/codes/labs_lecture14/lab01_ChebGCNs/lib/grid_graph.py
 
 import sklearn
 import sklearn.metrics
-import scipy.sparse, scipy.sparse.linalg  # scipy.spatial.distance
+import scipy.sparse
+import scipy.sparse.linalg
 import numpy as np
 
 
@@ -30,7 +32,6 @@ def grid(m, dtype=np.float32):
 
 def distance_sklearn_metrics(z, k=4, metric="euclidean"):
     """Compute pairwise distances"""
-    # d = sklearn.metrics.pairwise.pairwise_distances(z, metric=metric, n_jobs=-2)
     d = sklearn.metrics.pairwise.pairwise_distances(z, metric=metric, n_jobs=1)
     # k-NN
     idx = np.argsort(d)[:, 1 : k + 1]
@@ -51,10 +52,10 @@ def adjacency(dist, idx):
     dist = np.exp(-(dist ** 2) / sigma2)
 
     # Weight matrix
-    I = np.arange(0, M).repeat(k)
+    P = np.arange(0, M).repeat(k)
     J = idx.reshape(M * k)
     V = dist.reshape(M * k)
-    W = scipy.sparse.coo_matrix((V, (I, J)), shape=(M, M))
+    W = scipy.sparse.coo_matrix((V, (P, J)), shape=(M, M))
 
     # No self-connections
     W.setdiag(0)

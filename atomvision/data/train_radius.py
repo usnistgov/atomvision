@@ -8,7 +8,7 @@ from torch.optim import lr_scheduler
 import time
 from collections import defaultdict
 import torch.nn.functional as F
-import numpy as np
+# import numpy as np
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("device", device)
@@ -175,7 +175,6 @@ def train_model(model, optimizer, scheduler, num_epochs=25):
                     .to(device)
                 )
 
-                # labels = torch.where(sample["label"] > 0,sample["label"],torch.double(1)).to(device)
                 # print (labels,labels.size)
                 # labels=labels.unsqueeze(1).repeat(1, 3, 1, 1)
 
@@ -251,8 +250,8 @@ if __name__ == "__main__":
     model = ResNetUNet(num_class).to(device)
 
     # freeze backbone layers
-    for l in model.base_layers:
-        for param in l.parameters():
+    for bl in model.base_layers:
+        for param in bl.parameters():
             param.requires_grad = False
 
     optimizer_ft = optim.Adam(
