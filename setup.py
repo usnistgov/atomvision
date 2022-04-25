@@ -6,7 +6,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 setuptools.setup(
     name="atomvision",  # Replace with your own username
     version="2021.10.11",
-    author="Kamal Choudhary",
+    author="Kamal Choudhary, Brian DeCost",
     author_email="kamal.choudhary@nist.gov",
     description="atomvision",
     install_requires=[
