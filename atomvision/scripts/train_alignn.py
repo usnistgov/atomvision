@@ -3,17 +3,21 @@ import typer
 import pydantic
 from typing import Dict, List, Optional, Literal
 from pathlib import Path
-
+from functools import partial
 import segmentation_models_pytorch as smp
-
 import torch
-from ignite.engine import Events, create_supervised_evaluator, create_supervised_trainer
-from ignite.handlers import Checkpoint, DiskSaver, TerminateOnNan
+from ignite.engine import (
+    Events,
+    create_supervised_evaluator,
+    create_supervised_trainer,
+)
+from ignite.handlers import Checkpoint, DiskSaver
 from ignite.metrics import Accuracy, Loss
 from ignite.utils import setup_logger
 
-from jarvis.db.figshare import data
-from segmentation_models_pytorch.encoders import get_preprocessing_fn
+# from jarvis.db.figshare import data
+
+# from segmentation_models_pytorch.encoders import get_preprocessing_fn
 from torch import nn
 from torch.utils.data import DataLoader, SubsetRandomSampler
 
@@ -50,7 +54,10 @@ class Config(pydantic.BaseSettings):
     training: TrainingSettings = TrainingSettings()
     localization: LocalizationSettings = LocalizationSettings()
     gcn: alignn.ALIGNNConfig = alignn.ALIGNNConfig(
-        name="alignn", alignn_layers=0, atom_input_features=2, output_features=6
+        name="alignn",
+        alignn_layers=0,
+        atom_input_features=2,
+        output_features=6,
     )
 
 
@@ -91,7 +98,10 @@ def setup_unet_optimizer(
     """Configure Unet optimizer and scheduler for fine-tuning."""
     optimizer = torch.optim.AdamW(
         [
-            {"params": model.encoder.parameters(), "lr": config.learning_rate_finetune},
+            {
+                "params": model.encoder.parameters(),
+                "lr": config.learning_rate_finetune,
+            },
             {"params": model.decoder.parameters()},
             {"params": model.segmentation_head.parameters()},
         ],
@@ -127,9 +137,6 @@ def setup_gcn_optimizer(
     return optimizer, scheduler
 
 
-from functools import partial
-
-
 def setup_accuracy(mode: Literal["binary", "categorical"]):
     softmax = partial(torch.softmax, dim=1)
     link = {"binary": torch.sigmoid, "categorical": softmax}[mode]
@@ -143,13 +150,15 @@ def setup_accuracy(mode: Literal["binary", "categorical"]):
 
 
 def log_training_loss(engine):
-    print(
-        f"Epoch[{engine.state.epoch}.{engine.state.iteration}] Loss: {engine.state.output:.2f}"
-    )
+    epoch = engine.state.epoch
+    iteration = engine.state.iteration
+    print(f"Epoch[{epoch}.{iteration}] Loss: {engine.state.output:.2f}")
 
 
-def setup_evaluation(evaluator, dataloaders: Dict[str, DataLoader], metrics: List[str]):
-    """Close over history dictionary history: Dict[str, Dict[str, List[float]]]"""
+def setup_evaluation(
+    evaluator, dataloaders: Dict[str, DataLoader], metrics: List[str]
+):
+    """Close over history dictionary history:Dict[str,Dict[str,List[float]]]"""
 
     history = {
         "train": {m: [] for m in metrics},
@@ -169,7 +178,7 @@ def setup_evaluation(evaluator, dataloaders: Dict[str, DataLoader], metrics: Lis
             acc = metrics["accuracy"]
             nll = metrics["nll"]
             print(
-                f"{tag} results - Epoch: {epoch}  Avg accuracy: {acc:.2f} Avg nll loss: {nll:.2f}",
+                f"{tag} - Epoch:{epoch} Avg acc:{acc:.2f} Avg nlll:{nll:.2f}",
             )
 
     return log_train_val_results, history
@@ -181,7 +190,10 @@ cli = typer.Typer()
 @cli.command()
 def gcn(
     config: Optional[Path] = typer.Argument(
-        Path("models/test/config.json"), exists=True, file_okay=True, dir_okay=False
+        Path("models/test/config.json"),
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
     )
 ):
 
@@ -205,9 +217,12 @@ def gcn(
     )
 
     localization_checkpoint = (
-        checkpoint_dir / f"{config.localization.checkpoint}_{config.training.epochs}.pt"
+        checkpoint_dir
+        / f"{config.localization.checkpoint}_{config.training.epochs}.pt"
     )
-    state = torch.load(localization_checkpoint, map_location=torch.device("cpu"))
+    state = torch.load(
+        localization_checkpoint, map_location=torch.device("cpu")
+    )
     localization_model.load_state_dict(state["model"])
     localization_model.to(device)
 
@@ -220,12 +235,16 @@ def gcn(
 
     # data and optimizer setup
     train_loader, val_loader = get_train_val_loaders(config)
-    optimizer, scheduler = setup_gcn_optimizer(model, train_loader, config.training)
+    optimizer, scheduler = setup_gcn_optimizer(
+        model, train_loader, config.training
+    )
 
     # task and evaluation setup
     criterion = nn.CrossEntropyLoss()
     metrics = {
-        "accuracy": Accuracy(output_transform=setup_accuracy(mode="categorical")),
+        "accuracy": Accuracy(
+            output_transform=setup_accuracy(mode="categorical")
+        ),
         "nll": Loss(criterion),
     }
 
@@ -243,7 +262,9 @@ def gcn(
         device=device,
     )
 
-    trainer.logger = setup_logger("trainer", filepath=checkpoint_dir / "train_gcn.log")
+    trainer.logger = setup_logger(
+        "trainer", filepath=checkpoint_dir / "train_gcn.log"
+    )
     evaluator.logger = setup_logger(
         "trainer", filepath=checkpoint_dir / "train_gcn.log"
     )
@@ -282,7 +303,10 @@ def gcn(
 @cli.command()
 def localization(
     config: Optional[Path] = typer.Argument(
-        Path("models/test/config.json"), exists=True, file_okay=True, dir_okay=False
+        Path("models/test/config.json"),
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
     )
 ):
 
@@ -310,7 +334,9 @@ def localization(
 
     # data and optimizer setup
     train_loader, val_loader = get_train_val_loaders(config)
-    optimizer, scheduler = setup_unet_optimizer(model, train_loader, config.training)
+    optimizer, scheduler = setup_unet_optimizer(
+        model, train_loader, config.training
+    )
 
     # task and evaluation setup
     criterion = nn.BCEWithLogitsLoss()
@@ -333,8 +359,12 @@ def localization(
         device=device,
     )
 
-    trainer.logger = setup_logger("trainer", filepath=checkpoint_dir / "train.log")
-    evaluator.logger = setup_logger("trainer", filepath=checkpoint_dir / "train.log")
+    trainer.logger = setup_logger(
+        "trainer", filepath=checkpoint_dir / "train.log"
+    )
+    evaluator.logger = setup_logger(
+        "trainer", filepath=checkpoint_dir / "train.log"
+    )
 
     # apply learning rate scheduler
     trainer.add_event_handler(

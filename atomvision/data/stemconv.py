@@ -6,7 +6,7 @@ from scipy.interpolate import interp1d
 # from numbers import Number
 from jarvis.core.utils import gaussian
 from jarvis.core.utils import lorentzian2 as lorentzian
-from jarvis.core.atoms import Atoms, get_supercell_dims, crop_square
+from jarvis.core.atoms import Atoms  # , get_supercell_dims, crop_square
 from typing import List
 
 
@@ -51,9 +51,9 @@ class STEMConv(object):
         array[z, (rows + 1) % shape[0], cols] += (positions[:, 0] - rows) * (
             1 - (positions[:, 1] - cols)
         )
-        array[z, rows, (cols + 1) % shape[1]] += (1 - (positions[:, 0] - rows)) * (
-            positions[:, 1] - cols
-        )
+        array[z, rows, (cols + 1) % shape[1]] += (
+            1 - (positions[:, 0] - rows)
+        ) * (positions[:, 1] - cols)
         array[z, (rows + 1) % shape[0], (cols + 1) % shape[1]] += (
             rows - positions[:, 0]
         ) * (cols - positions[:, 1])
@@ -71,7 +71,8 @@ class STEMConv(object):
 
         atoms: jarvis.core.Atoms material slab
         px_scale: pixel size in angstroms/px
-        eps: tolerance factor (angstroms) for rendering atoms outside the field of view
+        eps: tolerance factor (angstroms)
+        for rendering atoms outside the field of view
         rot: rotation about the image center (degrees)
         shift: rigid translation of field of view [dx, dy] (angstroms)
 
@@ -96,11 +97,12 @@ class STEMConv(object):
         y = np.fft.fftfreq(output_px[1]) * output_px[1] * px_scale
         r = np.sqrt(x[:, None] ** 2 + y[None] ** 2)
 
-        # construct the probe profile centered at (0,0) on the periodic spatial grid
+        # construct the probe profile centered
+        # at (0,0) on the periodic spatial grid
         x = np.linspace(0, 4 * self.lorentzian_width, self.nbins)
-        profile = gaussian(x, self.gaussian_width) + self.intensity_ratio * lorentzian(
-            x, self.lorentzian_width
-        )
+        profile = gaussian(
+            x, self.gaussian_width
+        ) + self.intensity_ratio * lorentzian(x, self.lorentzian_width)
         profile /= profile.max()
         f = interp1d(x, profile, fill_value=0, bounds_error=False)
         intensity = f(r)
@@ -123,7 +125,9 @@ class STEMConv(object):
         # (actually rotate the lattice coordinates)
         if rot != 0:
             rot = np.radians(rot)
-            R = np.array([[np.cos(rot), -np.sin(rot)], [np.sin(rot), np.cos(rot)]])
+            R = np.array(
+                [[np.cos(rot), -np.sin(rot)], [np.sin(rot), np.cos(rot)]]
+            )
             pos = pos @ R
 
         # shift to center of image
@@ -166,7 +170,9 @@ class STEMConv(object):
         for number in np.unique(np.array(atoms.atomic_numbers)):
 
             temp = np.zeros((1,) + intensity.shape)
-            temp = self.superpose_deltas(atom_px_render[numbers_render == number], temp)
+            temp = self.superpose_deltas(
+                atom_px_render[numbers_render == number], temp
+            )
             array += temp * number ** self.power_factor
             temp = np.where(temp > 0, number, temp)
             mask += temp[0]
@@ -202,8 +208,8 @@ if __name__ == "__main__":
         a, px_scale=0.15, eps=0.6, rot=2, shift=[-0.2, 0.3]
     )
     plt.imshow(p, origin="lower", cmap="plasma")
-    plt.scatter(
-        atom_x[:, 1], atom_x[:, 0], marker="o", facecolors="none", edgecolors="r"
+    plt.scatter(atom_x[:, 1], atom_x[:, 0], marker="o",
+    facecolors="none", edgecolors="r"
     )
     plt.savefig("stem_example.png")
     plt.close()

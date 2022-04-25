@@ -1,9 +1,10 @@
+"""Module for plotting edges."""
 import networkx as nx
 import matplotlib.pyplot as plt
 
 
 def plot_edges(g: nx.Graph, ax=None):
-
+    """Plot edges."""
     if ax is None:
         ax = plt.gca()
 

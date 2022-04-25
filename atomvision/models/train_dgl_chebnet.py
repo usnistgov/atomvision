@@ -1,14 +1,17 @@
 import argparse
-import time
-import numpy as np
-import networkx as nx
+
+# import time
+# import numpy as np
+# import networkx as nx
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import dgl
-from torch.utils.data import DataLoader
+
+# from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
-from dgl.data import register_data_args, load_data
+
+# from dgl.data import register_data_args, load_data
 from dgl.nn.pytorch.conv import ChebConv, GMMConv
 from dgl.nn.pytorch.glob import MaxPooling
 from grid_graph import grid_graph
@@ -23,7 +26,9 @@ argparser.add_argument(
 argparser.add_argument(
     "--model", type=str, default="chebnet", help="model to use, chebnet/monet"
 )
-argparser.add_argument("--batch-size", type=int, default=100, help="batch size")
+argparser.add_argument(
+    "--batch-size", type=int, default=100, help="batch size"
+)
 args = argparser.parse_args()
 
 grid_side = 28  # 255 #28
@@ -86,24 +91,32 @@ test_loader = DataLoader(
 """
 
 ######################################################################
-import torchvision.transforms as transforms
+# import torchvision.transforms as transforms
 
 transform = transforms.Compose(
     [
         transforms.Resize(255),
         transforms.CenterCrop(224),
         transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        transforms.Normalize(
+            mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
+        ),
     ]
 )
 
 
-train_path = "/home/knc6/Software/atomvision/atomvision/data/STM_JV/train_folder"
+train_path = (
+    "/home/knc6/Software/atomvision/atomvision/data/STM_JV/train_folder"
+)
 test_path = "/home/knc6/Software/atomvision/atomvision/data/STM_JV/test_folder"
 
 
-train_path = "/home/knc6/Software/atomvision/atomvision/data/STEM_JV/train_folder"
-test_path = "/home/knc6/Software/atomvision/atomvision/data/STEM_JV/test_folder"
+train_path = (
+    "/home/knc6/Software/atomvision/atomvision/data/STEM_JV/train_folder"
+)
+test_path = (
+    "/home/knc6/Software/atomvision/atomvision/data/STEM_JV/test_folder"
+)
 
 
 train_dataset = datasets.ImageFolder(
@@ -114,14 +127,6 @@ test_dataset = datasets.ImageFolder(
     test_path,
     transform=transform,
 )
-# val_set = train_set #datasets.ImageFolder("root/label/valid", transform = transformations)
-
-# test_ratio=0.2
-# n_train=int((1-test_ratio)*len(dataset))
-# n_test=len(dataset)-n_train
-# print (len(dataset),n_train,n_test)
-# train_set, val_set = torch.utils.data.random_split(dataset, [n_train,n_test])
-# Put into a Dataloader using torch library
 
 
 train_loader = torch.utils.data.DataLoader(
@@ -147,9 +152,13 @@ class MoNet(nn.Module):
 
         # Hidden layer
         for i in range(1, len(hiddens)):
-            self.layers.append(GMMConv(hiddens[i - 1], hiddens[i], 2, n_kernels))
+            self.layers.append(
+                GMMConv(hiddens[i - 1], hiddens[i], 2, n_kernels)
+            )
 
-        self.cls = nn.Sequential(nn.Linear(hiddens[-1], out_feats), nn.LogSoftmax())
+        self.cls = nn.Sequential(
+            nn.Linear(hiddens[-1], out_feats), nn.LogSoftmax()
+        )
 
     def forward(self, g_arr, feat):
         for g, layer in zip(g_arr, self.layers):
@@ -177,13 +186,17 @@ class ChebNet(nn.Module):
         for i in range(1, len(hiddens)):
             self.layers.append(ChebConv(hiddens[i - 1], hiddens[i], k))
 
-        self.cls = nn.Sequential(nn.Linear(hiddens[-1], out_feats), nn.LogSoftmax())
+        self.cls = nn.Sequential(
+            nn.Linear(hiddens[-1], out_feats), nn.LogSoftmax()
+        )
 
     def forward(self, g_arr, feat):
         for g, layer in zip(g_arr, self.layers):
             feat = (
                 self.pool(
-                    layer(g, feat, [2] * g.batch_size).transpose(-1, -2).unsqueeze(0)
+                    layer(g, feat, [2] * g.batch_size)
+                    .transpose(-1, -2)
+                    .unsqueeze(0)
                 )
                 .squeeze(0)
                 .transpose(-1, -2)
@@ -228,7 +241,11 @@ for epoch in range(nepochs):
         loss_accum += loss.item()
 
         if (i + 1) % log_interval == 0:
-            print("loss: {}, acc: {}".format(loss_accum / log_interval, hit / tot))
+            print(
+                "loss: {}, acc: {}".format(
+                    loss_accum / log_interval, hit / tot
+                )
+            )
             hit, tot = 0, 0
             loss_accum = 0
 

@@ -1,9 +1,11 @@
 # author: xbresson
-# code link: https://github.com/xbresson/CE7454_2019/blob/master/codes/labs_lecture14/lab01_ChebGCNs/lib/coarsening.py
+# code link: https://github.com/xbresson/CE7454_2019/blob/master/
+# codes/labs_lecture14/lab01_ChebGCNs/lib/coarsening.py
 
 import numpy as np
 import scipy.sparse
-import sklearn.metrics
+
+# import sklearn.metrics
 
 
 def laplacian(W, normalized=True):
@@ -20,8 +22,8 @@ def laplacian(W, normalized=True):
         d += np.spacing(np.array(0, W.dtype))
         d = 1 / np.sqrt(d)
         D = scipy.sparse.diags(d.A.squeeze(), 0)
-        I = scipy.sparse.identity(d.size, dtype=W.dtype)
-        L = I - D * W * D
+        J = scipy.sparse.identity(d.size, dtype=W.dtype)
+        L = J - D * W * D
 
     assert np.abs(L - L.T).mean() < 1e-9
     assert type(L) is scipy.sparse.csr.csr_matrix
@@ -31,15 +33,17 @@ def laplacian(W, normalized=True):
 def rescale_L(L, lmax=2):
     """Rescale Laplacian eigenvalues to [-1,1]"""
     M, M = L.shape
-    I = scipy.sparse.identity(M, format="csr", dtype=L.dtype)
+    J = scipy.sparse.identity(M, format="csr", dtype=L.dtype)
     L /= lmax * 2
-    L -= I
+    L -= J
     return L
 
 
 def lmax_L(L):
     """Compute largest Laplacian eigenvalue"""
-    return scipy.sparse.linalg.eigsh(L, k=1, which="LM", return_eigenvectors=False)[0]
+    return scipy.sparse.linalg.eigsh(
+        L, k=1, which="LM", return_eigenvectors=False
+    )[0]
 
 
 # graph coarsening with Heavy Edge Matching
@@ -58,7 +62,7 @@ def coarsen(A, levels):
         A.eliminate_zeros()
         Mnew, Mnew = A.shape
         print(
-            "Layer {0}: M_{0} = |V| = {1} nodes ({2} added), |E| = {3} edges".format(
+            "Layer{0}:M_{0}=|V|={1}nodes({2}added),|E|={3}edges".format(
                 i, Mnew, Mnew - M, A.nnz // 2
             )
         )
@@ -81,9 +85,11 @@ def HEM(W, levels, rid=None):
     graph[levels]: coarsest graph of Size N_levels < ... < N_2 < N_1
     parents[i] is a vector of size N_i with entries ranging from 1 to N_{i+1}
         which indicate the parents in the coarser graph[i+1]
-    nd_sz{i} is a vector of size N_i that contains the size of the supernode in the graph{i}
+    nd_sz{i} is a vector of size N_i that contains
+    the size of the supernode in the graph{i}
     Note
-    if "graph" is a list of length k, then "parents" will be a list of length k-1
+    if "graph" is a list of length k, then "parents"
+    will be a list of length k-1
     """
 
     N, N = W.shape
@@ -187,7 +193,9 @@ def HEM_one_level(rr, cc, vv, rid, weights):
 
                     # First approach
                     if 2 == 1:
-                        tval = vv[rs + jj] * (1.0 / weights[tid] + 1.0 / weights[nid])
+                        tval = vv[rs + jj] * (
+                            1.0 / weights[tid] + 1.0 / weights[nid]
+                        )
 
                     # Second approach
                     if 1 == 1:
@@ -236,12 +244,12 @@ def compute_perm(parents):
             assert 0 <= len(indices_node) <= 2
 
             # Add a node to go with a singelton.
-            if len(indices_node) is 1:
+            if len(indices_node) == 1:
                 indices_node.append(pool_singeltons)
                 pool_singeltons += 1
 
             # Add two nodes as children of a singelton in the parent.
-            elif len(indices_node) is 0:
+            elif len(indices_node) == 0:
                 indices_node.append(pool_singeltons + 0)
                 indices_node.append(pool_singeltons + 1)
                 pool_singeltons += 2

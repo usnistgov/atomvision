@@ -1,7 +1,8 @@
 from typing import Dict
 
 import torch
-import segmentation_models_pytorch as smp
+
+# import segmentation_models_pytorch as smp
 from segmentation_models_pytorch.encoders import get_preprocessing_fn
 
 preprocess_input = get_preprocessing_fn("resnet18", pretrained="imagenet")
@@ -28,6 +29,8 @@ def prepare_atom_localization_batch(
 ):
     """Extract image and mask from batch dictionary."""
     image, label, ids = batch["image"], batch["label"], batch["id"]
+    if len(ids) < 1:
+        raise ValueError("ids length", len(ids))
     batch = (
         image.to(device, non_blocking=non_blocking),
         label.unsqueeze(1).to(device, non_blocking=non_blocking),

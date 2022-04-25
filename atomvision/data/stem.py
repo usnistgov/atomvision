@@ -1,23 +1,16 @@
-"""Simulated STEM pytorch dataloader for atom localization and crystal classification."""
+"""STEM torch dataloader for atom localization and crystal classification."""
 import dgl
 import torch
-from typing import Dict
-from torch.utils.data import Dataset, DataLoader
-from torch.utils.data._utils.collate import default_collate
-
+from jarvis.core.lattice import get_2d_lattice
 import numpy as np
 import pandas as pd
 from skimage import draw
-
 from jarvis.core.atoms import Atoms
 from jarvis.core.specie import chem_data
-from jarvis.db.figshare import data, get_jid_data
-
+from jarvis.db.figshare import data
 from atomvision.data.stemconv import STEMConv
-
 from collections.abc import Callable
 from typing import Optional, List, Dict, Any
-
 from skimage import measure
 from scipy.spatial import KDTree
 import networkx as nx
@@ -40,7 +33,9 @@ def atomic_radius_mask(shape, X, N, px_scale=0.1):
     labels = np.zeros(shape, dtype=int)
     for x, n in zip(X, N):
 
-        rr, cc = draw.disk(tuple(x), 0.5 * RADII[n] / px_scale, shape=labels.shape)
+        rr, cc = draw.disk(
+            tuple(x), 0.5 * RADII[n] / px_scale, shape=labels.shape
+        )
         labels[rr, cc] = n
 
     return labels
@@ -77,8 +72,10 @@ class Jarvis2dSTEMDataset:
         label_mode: `delta` or `radius`, controls atom localization mask style
 
         ## augmentation settings
-        rotation_degrees: if specified, sample from Unif(-rotation_degrees, rotation_degrees)
-        shift_angstrom: if specified, sample from Unif(-shift_angstrom, shift_angstrom)
+        rotation_degrees: if specified, sample from
+        Unif(-rotation_degrees, rotation_degrees)
+        shift_angstrom: if specified, sample from
+        Unif(-shift_angstrom, shift_angstrom)
         zoom_pct: optional image scale factor: s *= 1 + (zoom_pct/100)
 
         """
@@ -97,7 +94,12 @@ class Jarvis2dSTEMDataset:
         if image_data is not None:
             self.df = pd.DataFrame(image_data)
         else:
+            # dft_2d = data("dft_2d")
+            # Overriding the crys with 2D lattice type
             self.df = pd.DataFrame(data("dft_2d"))
+            self.df["crys"] = self.df["atoms"].apply(
+                lambda x: get_2d_lattice(x)[0]
+            )
 
         self.stem = STEMConv(output_size=[256, 256])
 
@@ -107,8 +109,11 @@ class Jarvis2dSTEMDataset:
         self.test_ids = test_ids
 
         # label encoding dictionary: Dict[str, int]
-        self.class_labels = {key: id for id, key in enumerate(self.df.crys.unique())}
+        self.class_labels = {
+            key: id for id, key in enumerate(self.df.crys.unique())
+        }
         self.n_classes = len(self.class_labels)
+        print("Data n_classes", len(self.class_labels), self.n_classes)
 
     def split_dataset(self, val_frac: float = 0.1, test_frac: float = 0.1):
         N = len(self.df)
@@ -144,7 +149,9 @@ class Jarvis2dSTEMDataset:
 
         # apply pre-rendering structure augmentation
         if self.rotation_degrees is not None:
-            rot = np.random.uniform(-self.rotation_degrees, self.rotation_degrees)
+            rot = np.random.uniform(
+                -self.rotation_degrees, self.rotation_degrees
+            )
 
         if self.shift_angstrom is not None:
             shift_x, shift_y = np.random.uniform(
@@ -190,7 +197,7 @@ class Jarvis2dSTEMDataset:
         a = Atoms.from_dict(row.atoms)
 
         # defaults:
-        rot = 0
+        # rot = 0
         shift_x = 0
         shift_y = 0
         px_scale = self.px_scale
@@ -204,7 +211,11 @@ class Jarvis2dSTEMDataset:
         samples = []
         for angle in angles:
             image, label, pos, nb = self.stem.simulate_surface(
-                a, px_scale=px_scale, eps=0.6, rot=angle, shift=[shift_x, shift_y]
+                a,
+                px_scale=px_scale,
+                eps=0.6,
+                rot=angle,
+                shift=[shift_x, shift_y],
             )
 
             if self.label_mode == "radius":
@@ -297,17 +308,20 @@ def to_dgl(g):
 def build_prepare_graph_batch(model, prepare_image_batch):
     """Close over atom localization model and image batch prep.
 
-    Running the pixel classifier like this in the dataloader is not the most efficient
-    It might be viable to put this inside a closure used for a dataloader collate_fn
-    This would assemble the full batch, run the pixel classifier, and then construct
-    the atomistic graphs. Hopefully this is all done during DataLoader prefetch still.
+    Running the pixel classifier like this in the dataloader
+    is not the most efficient. It might be viable to put this
+    inside a closure used for a dataloader collate_fn. This would
+    assemble the full batch, run the pixel classifier, and then
+    construct the atomistic graphs. Hopefully this is all
+    done during DataLoader prefetch still.
 
-    Depending on the quality of the label predictions, this could potentially need
-    label smoothing as well.
+    Depending on the quality of the label predictions,
+    this could potentially need label smoothing as well.
 
 
     example: initialize GCN-only ALIGNN with two atom input features
-    cfg = alignn.ALIGNNConfig(name="alignn", alignn_layers=0, atom_input_features=2)
+    cfg = alignn.ALIGNNConfig(name="alignn",
+    alignn_layers=0, atom_input_features=2)
     model = alignn.ALIGNN(cfg)
     model(g)
     """
@@ -318,7 +332,9 @@ def build_prepare_graph_batch(model, prepare_image_batch):
         non_blocking=False,
     ):
         """Extract image and mask from batch dictionary."""
-        x, mask = prepare_image_batch(batch, device=device, non_blocking=non_blocking)
+        x, mask = prepare_image_batch(
+            batch, device=device, non_blocking=non_blocking
+        )
 
         with torch.no_grad():
             yhat = model(x).detach().cpu()

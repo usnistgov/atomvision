@@ -1,4 +1,3 @@
-from atomvision.data.train import ResNetUNet
 import torch
 from jarvis.db.figshare import data
 from torch.utils.data import DataLoader

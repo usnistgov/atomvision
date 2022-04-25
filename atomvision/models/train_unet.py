@@ -5,18 +5,23 @@ import torchvision.models as models
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
-from PIL import Image
-import numpy as np
+
+# from PIL import Image
+# import numpy as np
+# import matplotlib.pyplot as plt
 import matplotlib.pyplot as plt
-import matplotlib.pyplot as plt
-import numpy as np
+
+# import numpy as np
 import seaborn as sns
-import torch
+
+# import torch
 import random
-from torch import nn, optim
+
+# from torch import nn, optim
 import torch.nn.functional as F
-from torch.utils.data import DataLoader
-from torchvision import datasets, transforms
+
+# from torch.utils.data import DataLoader
+# from torchvision import datasets, transforms
 import ignite
 from ignite.engine import (
     Events,
@@ -69,9 +74,12 @@ class Up(nn.Module):
     def __init__(self, in_channels, out_channels, bilinear=True):
         super().__init__()
 
-        # if bilinear, use the normal convolutions to reduce the number of channels
+        # if bilinear, use the normal convolutions
+        # to reduce the number of channels
         if bilinear:
-            self.up = nn.Upsample(scale_factor=2, mode="bilinear", align_corners=True)
+            self.up = nn.Upsample(
+                scale_factor=2, mode="bilinear", align_corners=True
+            )
             self.conv = DoubleConv(in_channels, out_channels, in_channels // 2)
         else:
             self.up = nn.ConvTranspose2d(
@@ -161,13 +169,18 @@ random.seed(123)
 np.random.seed(123)
 # Load in each dataset and apply transformations using
 # the torchvision.datasets as datasets library
-train_path = "/home/knc6/Software/atomvision/atomvision/data/STM_JV/train_folder"
+train_path = (
+    "/home/knc6/Software/atomvision/atomvision/data/STM_JV/train_folder"
+)
 test_path = "/home/knc6/Software/atomvision/atomvision/data/STM_JV/test_folder"
-train_path = "/home/knc6/Software/atomvision/atomvision/data/STEM_JV/train_folder"
-test_path = "/home/knc6/Software/atomvision/atomvision/data/STEM_JV/test_folder"
+train_path = (
+    "/home/knc6/Software/atomvision/atomvision/data/STEM_JV/train_folder"
+)
+test_path = (
+    "/home/knc6/Software/atomvision/atomvision/data/STEM_JV/test_folder"
+)
 train_dataset = datasets.ImageFolder(train_path, transform=transform)
 val_dataset = datasets.ImageFolder(test_path, transform=transform)
-# val_set = train_set #datasets.ImageFolder("root/label/valid", transform = transformations)
 
 # test_ratio=0.2
 # n_train=int((1-test_ratio)*len(dataset))
@@ -175,8 +188,12 @@ val_dataset = datasets.ImageFolder(test_path, transform=transform)
 # print (len(dataset),n_train,n_test)
 # train_set, val_set = torch.utils.data.random_split(dataset, [n_train,n_test])
 # Put into a Dataloader using torch library
-train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=1, shuffle=True)
-val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=1, shuffle=True)
+train_loader = torch.utils.data.DataLoader(
+    train_dataset, batch_size=1, shuffle=True
+)
+val_loader = torch.utils.data.DataLoader(
+    val_dataset, batch_size=1, shuffle=True
+)
 
 
 model = models.densenet161(pretrained=True)
@@ -200,8 +217,12 @@ metrics = {
     "nll": Loss(criterion),
     "cm": ConfusionMatrix(num_classes=5),
 }
-train_evaluator = create_supervised_evaluator(model, metrics=metrics, device=device)
-val_evaluator = create_supervised_evaluator(model, metrics=metrics, device=device)
+train_evaluator = create_supervised_evaluator(
+    model, metrics=metrics, device=device
+)
+val_evaluator = create_supervised_evaluator(
+    model, metrics=metrics, device=device
+)
 training_history = {"accuracy": [], "loss": []}
 validation_history = {"accuracy": [], "loss": []}
 last_epoch = []
@@ -215,7 +236,9 @@ def score_function(engine):
     return -val_loss
 
 
-handler = EarlyStopping(patience=10, score_function=score_function, trainer=trainer)
+handler = EarlyStopping(
+    patience=10, score_function=score_function, trainer=trainer
+)
 val_evaluator.add_event_handler(Events.COMPLETED, handler)
 
 
@@ -229,7 +252,7 @@ def log_training_results(trainer):
     training_history["accuracy"].append(accuracy)
     training_history["loss"].append(loss)
     print(
-        "Training Results - Epoch: {}  Avg accuracy: {:.2f} Avg loss: {:.2f}".format(
+        "Training Results-Epoch:{}Avg accuracy:{:.2f}Avg loss:{:.2f}".format(
             trainer.state.epoch, accuracy, loss
         )
     )
@@ -243,7 +266,7 @@ def log_validation_results(trainer):
     validation_history["accuracy"].append(accuracy)
     validation_history["loss"].append(loss)
     print(
-        "Validation Results - Epoch: {}  Avg accuracy: {:.2f} Avg loss: {:.2f}".format(
+        "Valid. Results-Epoch:{} Avg accuracy: {:.2f} Avg loss: {:.2f}".format(
             trainer.state.epoch, accuracy, loss
         )
     )
@@ -278,7 +301,9 @@ checkpointer = ModelCheckpoint(
     create_dir=True,
     require_empty=False,
 )
-trainer.add_event_handler(Events.EPOCH_COMPLETED, checkpointer, {"STEM5": model})
+trainer.add_event_handler(
+    Events.EPOCH_COMPLETED, checkpointer, {"STEM5": model}
+)
 trainer.run(train_loader, max_epochs=epochs)
 plt.plot(training_history["accuracy"], label="Training Accuracy")
 plt.plot(validation_history["accuracy"], label="Validation Accuracy")

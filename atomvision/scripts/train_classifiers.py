@@ -1,19 +1,24 @@
 import torch
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
-import torchvision.models as models
+
+# import torchvision.models as models
 import torch.nn as nn
 import torch.optim as optim
-from PIL import Image
+
+# from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
-import numpy as np
+
+# import numpy as np
 import seaborn as sns
 import sys
 import random
 import argparse
-from torch import nn, optim
-from torch.utils.data import DataLoader
+
+# from torch import optim
+
+# from torch.utils.data import DataLoader
 import ignite
 from ignite.engine import (
     Events,
@@ -24,11 +29,11 @@ from ignite.metrics import Accuracy, Loss, RunningAverage, ConfusionMatrix
 from ignite.handlers import ModelCheckpoint, EarlyStopping
 from atomvision.models.classifiers import (
     densenet,
-    googlenet,
-    vgg,
-    mobilenet,
-    resnet,
-    squeezenet,
+    #    googlenet,
+    #    vgg,
+    #    mobilenet,
+    #    resnet,
+    #    squeezenet,
 )
 from atomvision.scripts.focal_loss import FocalLoss
 
@@ -90,7 +95,9 @@ transform = transforms.Compose(
 if __name__ == "__main__":
     args = parser.parse_args(sys.argv[1:])
 
-    train_dataset = datasets.ImageFolder(args.train_folder, transform=transform)
+    train_dataset = datasets.ImageFolder(
+        args.train_folder, transform=transform
+    )
     val_dataset = datasets.ImageFolder(args.test_folder, transform=transform)
     train_loader = torch.utils.data.DataLoader(
         train_dataset, batch_size=args.batch_size, shuffle=True
@@ -118,14 +125,20 @@ if __name__ == "__main__":
 
     # defining the number of epochs
     # creating trainer,evaluator
-    trainer = create_supervised_trainer(model, optimizer, criterion, device=device)
+    trainer = create_supervised_trainer(
+        model, optimizer, criterion, device=device
+    )
     metrics = {
         "accuracy": Accuracy(),
         "nll": Loss(criterion),
         "cm": ConfusionMatrix(num_classes=5),
     }
-    train_evaluator = create_supervised_evaluator(model, metrics=metrics, device=device)
-    val_evaluator = create_supervised_evaluator(model, metrics=metrics, device=device)
+    train_evaluator = create_supervised_evaluator(
+        model, metrics=metrics, device=device
+    )
+    val_evaluator = create_supervised_evaluator(
+        model, metrics=metrics, device=device
+    )
     training_history = {"accuracy": [], "loss": []}
     validation_history = {"accuracy": [], "loss": []}
     last_epoch = []
@@ -136,7 +149,9 @@ if __name__ == "__main__":
         val_loss = engine.state.metrics["nll"]
         return -val_loss
 
-    handler = EarlyStopping(patience=10, score_function=score_function, trainer=trainer)
+    handler = EarlyStopping(
+        patience=10, score_function=score_function, trainer=trainer
+    )
     val_evaluator.add_event_handler(Events.COMPLETED, handler)
 
     @trainer.on(Events.EPOCH_COMPLETED)
@@ -149,7 +164,7 @@ if __name__ == "__main__":
         training_history["accuracy"].append(accuracy)
         training_history["loss"].append(loss)
         print(
-            "Training Results - Epoch: {}  Avg accuracy: {:.2f} Avg loss: {:.2f}".format(
+            "Training - Epoch:{}  Avg accuracy:{:.2f} Avg loss: {:.2f}".format(
                 trainer.state.epoch, accuracy, loss
             )
         )
@@ -162,7 +177,7 @@ if __name__ == "__main__":
         validation_history["accuracy"].append(accuracy)
         validation_history["loss"].append(loss)
         print(
-            "Validation Results - Epoch: {}  Avg accuracy: {:.2f} Avg loss: {:.2f}".format(
+            "Validation-Epoch:{}  Avg accuracy:{:.2f} Avg loss:{:.2f}".format(
                 trainer.state.epoch, accuracy, loss
             )
         )
@@ -191,7 +206,9 @@ if __name__ == "__main__":
     checkpointer = ModelCheckpoint(
         output_dir, "output", n_saved=2, create_dir=True, require_empty=False
     )
-    trainer.add_event_handler(Events.EPOCH_COMPLETED, checkpointer, {"output": model})
+    trainer.add_event_handler(
+        Events.EPOCH_COMPLETED, checkpointer, {"output": model}
+    )
     trainer.run(train_loader, max_epochs=epochs)
     plt.plot(training_history["accuracy"], label="Training Accuracy")
     plt.plot(validation_history["accuracy"], label="Validation Accuracy")

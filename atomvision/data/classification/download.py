@@ -56,7 +56,9 @@ def data(
         response = requests.get(url, stream=True)
         total_size_in_bytes = int(response.headers.get("content-length", 0))
         block_size = 1024  # 1 Kibibyte
-        progress_bar = tqdm(total=total_size_in_bytes, unit="iB", unit_scale=True)
+        progress_bar = tqdm(
+            total=total_size_in_bytes, unit="iB", unit_scale=True
+        )
         with open(path, "wb") as file:
             for data in response.iter_content(block_size):
                 progress_bar.update(len(data))
@@ -66,12 +68,15 @@ def data(
         # f.write(r.content)
         # f.close()
     if my_path is None:
-        my_path = os.path.abspath(str(os.path.join(os.path.dirname(__file__), ".")))
+        my_path = os.path.abspath(
+            str(os.path.join(os.path.dirname(__file__), "."))
+        )
         print("Found extract_path as None.")
     print("Loading and extracting the zipfile...")
     final_path = os.path.join(my_path, dataset)
     if not os.path.exists(final_path):
         info = zipfile.ZipFile(path).extractall(my_path)
+        print("Here info", info)
     print("Files are be kept at:", final_path)
     print("Process completed.")
 

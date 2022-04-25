@@ -1,10 +1,10 @@
 from jarvis.core.atoms import crop_square
 import matplotlib.pyplot as plt
-import os, glob
+import os
+import glob
 from jarvis.analysis.stem.convolution_apprx import STEMConv
-from jarvis.db.figshare import data, get_jid_data
-import matplotlib.pyplot as plt
-from jarvis.core.atoms import Atoms, ase_to_atoms, get_supercell_dims
+from jarvis.db.figshare import data  # , get_jid_data
+from jarvis.core.atoms import Atoms, get_supercell_dims
 from jarvis.core.lattice import get_2d_lattice
 from sklearn.model_selection import train_test_split
 from collections import defaultdict

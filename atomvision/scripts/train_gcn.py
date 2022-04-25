@@ -1,13 +1,18 @@
-from typing import Dict
+# from typing import Dict
 from pathlib import Path
 
 import segmentation_models_pytorch as smp
 
 import torch
-from ignite.engine import Events, create_supervised_evaluator, create_supervised_trainer
-from ignite.handlers import Checkpoint, DiskSaver, TerminateOnNan
+from ignite.engine import (
+    Events,
+    create_supervised_evaluator,
+    create_supervised_trainer,
+)
+from ignite.handlers import Checkpoint, DiskSaver
 from ignite.metrics import Accuracy, Loss
-from jarvis.db.figshare import data
+
+# from jarvis.db.figshare import data
 from segmentation_models_pytorch.encoders import get_preprocessing_fn
 from torch import nn
 from torch.utils.data import DataLoader, SubsetRandomSampler
@@ -37,7 +42,9 @@ unet = smp.Unet(
 )
 state = torch.load(checkpoint_dir / "checkpoint_5.pt")
 unet.load_state_dict(state["model"])
-prepare_graph_batch = build_prepare_graph_batch(unet, prepare_atom_localization_batch)
+prepare_graph_batch = build_prepare_graph_batch(
+    unet, prepare_atom_localization_batch
+)
 
 j2d = Jarvis2dSTEMDataset(
     label_mode="radius",
@@ -48,7 +55,10 @@ j2d = Jarvis2dSTEMDataset(
 )
 
 cfg = alignn.ALIGNNConfig(
-    name="alignn", alignn_layers=0, atom_input_features=2, output_features=j2d.n_classes
+    name="alignn",
+    alignn_layers=0,
+    atom_input_features=2,
+    output_features=j2d.n_classes,
 )
 gcn_model = alignn.ALIGNN(cfg)
 
@@ -110,23 +120,29 @@ trainer.add_event_handler(Events.EPOCH_COMPLETED, handler)
 
 @trainer.on(Events.ITERATION_COMPLETED)
 def log_training_loss(trainer):
-    print(
-        f"Epoch[{trainer.state.epoch}.{trainer.state.iteration}] Loss: {trainer.state.output:.2f}"
-    )
+    epoch = trainer.state.epoch
+    iteration = trainer.state.iteration
+    print(f"Epoch[{epoch}.{iteration}] Loss: {trainer.state.output:.2f}")
 
 
 @trainer.on(Events.EPOCH_COMPLETED)
 def log_training_results(trainer):
     print("evaluating")
     evaluator.run(train_loader)
+
     metrics = evaluator.state.metrics
+    ep = trainer.state.epoch
+    acc = metrics["accuracy"]
+    nll = metrics["nll"]
     print(
-        f"Training Results - Epoch: {trainer.state.epoch}  Avg accuracy: {metrics['accuracy']:.2f} Avg nll loss: {metrics['nll']:.2f}",
+        f"Training - Epoch: {ep}  Avg acc: {acc:.2f} Avg nll loss: {nll:.2f}",
     )
     evaluator.run(val_loader)
     metrics = evaluator.state.metrics
+    acc = metrics["accuracy"]
+    nll = metrics["nll"]
     print(
-        f"Val Results - Epoch: {trainer.state.epoch}  Avg accuracy: {metrics['accuracy']:.2f} Avg nll loss: {metrics['nll']:.2f}",
+        f"Val  - Epoch: {ep}  Avg accuracy: {acc:.2f} Avg nll loss: {nll:.2f}",
     )
     print()
 
