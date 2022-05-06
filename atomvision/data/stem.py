@@ -73,7 +73,9 @@ class Jarvis2dSTEMDataset:
         zoom_pct: optional image scale factor: s *= 1 + (zoom_pct/100)
 
         """
-
+        print("n_train", n_train)
+        # import sys
+        # sys.exit()
         if label_mode not in LABEL_MODES:
             raise NotImplementedError(f"label mode {label_mode} not supported")
 
@@ -94,7 +96,7 @@ class Jarvis2dSTEMDataset:
             self.df["crys"] = self.df["atoms"].apply(
                 lambda x: get_2d_lattice(x)[0]
             )
-
+        print(self.df)
         self.stem = STEMConv(output_size=[256, 256])
 
         train_ids, val_ids, test_ids = self.split_dataset(
@@ -144,6 +146,9 @@ class Jarvis2dSTEMDataset:
             train_ids = ids[:n_train]
             val_ids = ids[-(n_val + n_test) : -n_test]
             test_ids = ids[-n_test:]
+        print("train_ids", len(train_ids), n_train)
+        print("val_ids", len(val_ids), n_val)
+        print("test_ids", len(test_ids), n_test)
 
         return train_ids, val_ids, test_ids
 

@@ -42,12 +42,16 @@ class TrainingSettings(pydantic.BaseSettings):
     epochs: int = 100
     learning_rate: float = 1e-3
     learning_rate_finetune: float = 3e-5
-    n_train: int = None
-    n_val: int = None
-    n_test: int = None
+    n_train: Optional[int] = None
+    n_val: Optional[int] = None
+    n_test: Optional[int] = None
     keep_data_order: bool = False
     val_frac: float = 0.1
     test_frac: float = 0.1
+    model_name: str = "alignn"
+    alignn_layers: int = 1
+    atom_input_features: int = 2
+    output_features: int = 5
 
 
 class LocalizationSettings(pydantic.BaseSettings):
@@ -60,16 +64,15 @@ class Config(pydantic.BaseSettings):
     training: TrainingSettings = TrainingSettings()
     localization: LocalizationSettings = LocalizationSettings()
     gcn: alignn.ALIGNNConfig = alignn.ALIGNNConfig(
-        name="alignn",
-        alignn_layers=0,
-        atom_input_features=2,
-        output_features=6,
+        name=training.model_name,
+        alignn_layers=training.alignn_layers,
+        atom_input_features=training.atom_input_features,
+        output_features=training.output_features,
     )
 
 
 def get_train_val_loaders(config: Config = Config()):
     """UNet dataloader specification."""
-    print("config", config)
     batch_size = config.training.batch_size
 
     j2d = Jarvis2dSTEMDataset(
@@ -211,15 +214,15 @@ def gcn(
     train_loader=None,
     val_loader=None,
 ):
-    if train_loader is None:
-        train_loader, val_loader = get_train_val_loaders(Config(config))
 
     checkpoint_dir = config.parent
-    print("config1", config, type(config))
     with open(config, "r") as f:
         config = Config(**json.load(f))
-    print("config2", config, type(config))
+    if train_loader is None:
+        print("No dataloader, using STEMDataset.")
+        train_loader, val_loader = get_train_val_loaders(config)
 
+    print("config gcn", config, type(config))
     device = "cpu"
     if torch.cuda.is_available():
         device = "cuda"
@@ -330,15 +333,18 @@ def localization(
     val_loader=None,
 ):
 
-    if train_loader is None:
-        train_loader, val_loader = get_train_val_loaders(Config(config))
+    # if train_loader is None:
+    #    print ('No dataloader, using STEMDataset.')
+    #    train_loader, val_loader = get_train_val_loaders(Config(config))
     prepare_batch = prepare_atom_localization_batch
 
     checkpoint_dir = config.parent
-    print("config1", config, type(config))
     with open(config, "r") as f:
         config = Config(**json.load(f))
-    print("config2", config, type(config))
+    if train_loader is None:
+        print("No dataloader, using STEMDataset.")
+        train_loader, val_loader = get_train_val_loaders(config)
+    print("config localization", config, type(config))
     # print(config)
 
     device = "cpu"
