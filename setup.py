@@ -18,6 +18,7 @@ setuptools.setup(
         "torch>=1.7.1",
         "pyparsing==2.2.1",
         "typer",
+        "python-dotenv",
         "segmentation-models-pytorch>=0.2.1",
         # "torchvision>=0.10.0+cu111",
         "scikit-learn>=0.24.1",
