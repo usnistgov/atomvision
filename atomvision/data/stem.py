@@ -41,18 +41,6 @@ def atomic_radius_mask(shape, X, N, px_scale=0.1):
     return labels
 
 
-"""
-#excluded=['JVASP-76418','JVASP-76611','JVASP-19999','JVASP-76567','JVASP-652','JVASP-6379','JVASP-60567','JVASP-60331','JVASP-8981','JVASP-8984','JVASP-60475','JVASP-31368','JVASP-75366','JVASP-75078','JVASP-60353','JVASP-27957','JVASP-6346','JVASP-676','JVASP-76604']
-excluded=['JVASP-60433']
-my_data=[]
-for i in data("dft_2d"):
-    if i['jid'] not in excluded and len(my_data)<129:
-        my_data.append(i)
-
-"""
-# my_data = data("dft_2d")[0:128]
-
-
 class Jarvis2dSTEMDataset:
     """Simulated STEM dataset (jarvis dft_2d)"""
 
@@ -65,6 +53,12 @@ class Jarvis2dSTEMDataset:
         shift_angstrom: Optional[float] = None,
         zoom_pct: Optional[float] = None,
         to_tensor: Optional[Callable] = None,
+        n_train=None,
+        n_val=None,
+        n_test=None,
+        val_frac=0.1,
+        test_frac=0.1,
+        keep_data_order=False,
     ):
         """Simulated STEM dataset, jarvis-2d data
 
@@ -90,7 +84,7 @@ class Jarvis2dSTEMDataset:
         self.rotation_degrees = rotation_degrees
         self.shift_angstrom = shift_angstrom
         self.zoom_pct = zoom_pct
-
+        self.keep_data_order = keep_data_order
         if image_data is not None:
             self.df = pd.DataFrame(image_data)
         else:
@@ -103,7 +97,13 @@ class Jarvis2dSTEMDataset:
 
         self.stem = STEMConv(output_size=[256, 256])
 
-        train_ids, val_ids, test_ids = self.split_dataset()
+        train_ids, val_ids, test_ids = self.split_dataset(
+            n_train=n_train,
+            n_val=n_val,
+            n_test=n_test,
+            val_frac=val_frac,
+            test_frac=test_frac,
+        )
         self.train_ids = train_ids
         self.val_ids = val_ids
         self.test_ids = test_ids
@@ -115,19 +115,35 @@ class Jarvis2dSTEMDataset:
         self.n_classes = len(self.class_labels)
         print("Data n_classes", len(self.class_labels), self.n_classes)
 
-    def split_dataset(self, val_frac: float = 0.1, test_frac: float = 0.1):
-        N = len(self.df)
-        n_val = int(N * val_frac)
-        n_test = int(N * test_frac)
-        n_train = N - (n_val + n_test)
+    def split_dataset(
+        self,
+        n_train=None,
+        n_val=None,
+        n_test=None,
+        val_frac: float = 0.1,
+        test_frac: float = 0.1,
+    ):
 
-        # set a consistent train/val/test split
-        torch.manual_seed(0)
-        shuf = torch.randperm(N)
-        torch.random.seed()
-        train_ids = shuf[:n_train].tolist()
-        val_ids = shuf[n_train : n_train + n_val].tolist()
-        test_ids = shuf[n_train + n_val : n_train + n_val + n_test].tolist()
+        N = len(self.df)
+        if n_train is None:
+            n_val = int(N * val_frac)
+            n_test = int(N * test_frac)
+            n_train = N - (n_val + n_test)
+        if not self.keep_data_order:
+            # set a consistent train/val/test split
+            torch.manual_seed(0)
+            shuf = torch.randperm(N)
+            torch.random.seed()
+            train_ids = shuf[:n_train].tolist()
+            val_ids = shuf[n_train : n_train + n_val].tolist()
+            test_ids = shuf[
+                n_train + n_val : n_train + n_val + n_test
+            ].tolist()
+        else:
+            ids = list(np.arange(N))
+            train_ids = ids[:n_train]
+            val_ids = ids[-(n_val + n_test) : -n_test]
+            test_ids = ids[-n_test:]
 
         return train_ids, val_ids, test_ids
 

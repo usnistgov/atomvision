@@ -1,2 +1,0 @@
-python train_alignn.py localization
-python train_alignn.py gcn
