@@ -16,7 +16,7 @@ def test_stemconv():
     a = Atoms.from_dict(get_jid_data("JVASP-667")["atoms"])
     c = crop_square(a)
     # c = a.make_supercell_matrix([2, 2, 1])
-    p = STEMConv(atoms=c).simulate_surface()
+    p = STEMConv(atoms=c).simulate_surface(c)
 
 
 def test_gcn():
@@ -24,4 +24,5 @@ def test_gcn():
     y = gcn(Path(config_json_file))
 
 
-# test_gcn()
+test_stemconv()
+test_gcn()

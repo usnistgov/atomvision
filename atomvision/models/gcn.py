@@ -42,16 +42,15 @@ class TrainingSettings(pydantic.BaseSettings):
     epochs: int = 100
     learning_rate: float = 1e-3
     learning_rate_finetune: float = 3e-5
-    n_train: Optional[int] = None
-    n_val: Optional[int] = None
-    n_test: Optional[int] = None
+    n_train: int = None
+    n_val: int = None
+    n_test: int = None
     keep_data_order: bool = False
     val_frac: float = 0.1
     test_frac: float = 0.1
-    model_name: str = "alignn"
-    alignn_layers: int = 1
-    atom_input_features: int = 2
-    output_features: int = 5
+    output_feats: int = 5
+    atom_input_feats: int = 2
+    nlayers_alignn: int = 0
 
 
 class LocalizationSettings(pydantic.BaseSettings):
@@ -63,11 +62,12 @@ class Config(pydantic.BaseSettings):
     dataset: DatasetSettings = DatasetSettings()
     training: TrainingSettings = TrainingSettings()
     localization: LocalizationSettings = LocalizationSettings()
+    print("training.output_feats", training.output_feats)
     gcn: alignn.ALIGNNConfig = alignn.ALIGNNConfig(
-        name=training.model_name,
-        alignn_layers=training.alignn_layers,
-        atom_input_features=training.atom_input_features,
-        output_features=training.output_features,
+        name="alignn",
+        alignn_layers=training.nlayers_alignn,
+        atom_input_features=training.atom_input_feats,
+        output_features=training.output_feats,
     )
 
 
