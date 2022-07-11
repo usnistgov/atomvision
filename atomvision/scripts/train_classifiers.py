@@ -101,7 +101,7 @@ if __name__ == "__main__":
         val_dataset, batch_size=args.batch_size, shuffle=True
     )
 
-    epochs = args.epochs
+    epochs = int(args.epochs)
     model_name = args.model_name
     output_dir = args.output_dir
     criterion = args.criterion
