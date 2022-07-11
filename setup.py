@@ -10,9 +10,9 @@ setuptools.setup(
     author_email="kamal.choudhary@nist.gov",
     description="atomvision",
     install_requires=[
-        "numpy>=1.19.5",
-        "scipy>=1.6.3",
-        "jarvis-tools>=2021.07.19",
+        "numpy==1.19.5",
+        "scipy==1.6.3",
+        "jarvis-tools==2021.07.19",
         "torch>=1.7.1",
         # "torchvision>=0.10.0+cu111",
         "scikit-learn>=0.24.1",
