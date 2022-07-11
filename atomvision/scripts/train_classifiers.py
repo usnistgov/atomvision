@@ -196,6 +196,8 @@ if __name__ == "__main__":
         ax.set_title("Confusion Matrix")
         ax.xaxis.set_ticklabels(classes, rotation=90)
         ax.yaxis.set_ticklabels(classes, rotation=0)
+        plt.savefig("CM.png")
+        plt.close()
 
     # Cheange n_save if we need to store more models
     checkpointer = ModelCheckpoint(
