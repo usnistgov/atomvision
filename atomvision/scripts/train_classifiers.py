@@ -89,19 +89,20 @@ transform = transforms.Compose(
 
 if __name__ == "__main__":
     args = parser.parse_args(sys.argv[1:])
+    epochs = int(args.epochs)
+    batch_size = int(args.batch_size)
 
     train_dataset = datasets.ImageFolder(
         args.train_folder, transform=transform
     )
     val_dataset = datasets.ImageFolder(args.test_folder, transform=transform)
     train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=args.batch_size, shuffle=True
+        train_dataset, batch_size=batch_size, shuffle=True
     )
     val_loader = torch.utils.data.DataLoader(
-        val_dataset, batch_size=args.batch_size, shuffle=True
+        val_dataset, batch_size=batch_size, shuffle=True
     )
 
-    epochs = args.epochs
     model_name = args.model_name
     output_dir = args.output_dir
     criterion = args.criterion
@@ -196,6 +197,8 @@ if __name__ == "__main__":
         ax.set_title("Confusion Matrix")
         ax.xaxis.set_ticklabels(classes, rotation=90)
         ax.yaxis.set_ticklabels(classes, rotation=0)
+        plt.savefig("CM.png")
+        plt.close()
 
     # Cheange n_save if we need to store more models
     checkpointer = ModelCheckpoint(
