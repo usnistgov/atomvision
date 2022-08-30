@@ -1,0 +1,1 @@
+{"dataset": {"rotation_degrees": 90.0, "shift_angstrom": 0.5, "zoom_pct": 5.0}, "training": {"batch_size": 32, "epochs": 100, "learning_rate": 0.001, "learning_rate_finetune": 3e-05,"n_train":null,"n_val":null,"n_test":null}}
