@@ -17,6 +17,7 @@ setuptools.setup(
         "scikit-image",
         "torch>=1.7.1",
         "pyparsing==2.2.1",
+        "opencv-python",
         "typer",
         "python-dotenv",
         "segmentation-models-pytorch>=0.2.1",
