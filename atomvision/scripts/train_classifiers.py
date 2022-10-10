@@ -1,19 +1,15 @@
+"""Module to train image classification models."""
 import torch
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
-import torchvision.models as models
 import torch.nn as nn
 import torch.optim as optim
-from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
-import numpy as np
 import seaborn as sns
 import sys
 import random
 import argparse
-from torch import nn, optim
-from torch.utils.data import DataLoader
 import ignite
 from ignite.engine import (
     Events,
@@ -31,42 +27,46 @@ from atomvision.models.cnn_classifiers import (
     squeezenet,
 )
 from atomvision.scripts.focal_loss import FocalLoss
-
-# from atomvision.models.alignn_classifier import ALIGNN
-from alignn.models.alignn import ALIGNNConfig
-
-from skimage.future import graph
+from jarvis.db.jsonutils import dumpjson
 from skimage.future.graph import rag_mean_color
-from skimage import graph, data, io, segmentation, color
+from skimage import segmentation, color
 import dgl
-import torch
 import cv2
-import numpy as np
 from skimage.measure import regionprops
 from skimage import draw
-from matplotlib import pyplot as plt
-from typing import Tuple, Union
 from alignn.models.alignn import (
     ALIGNNConfig,
     MLPLayer,
     ALIGNNConv,
     EdgeGatedGraphConv,
 )
-import dgl
-import dgl.function as fn
-import numpy as np
-import torch
 from dgl.nn import AvgPooling
-
-# from dgl.nn.functional import edge_softmax
-from pydantic.typing import Literal
-from torch import nn
-from torch.nn import functional as F
-
 from alignn.models.utils import RBFExpansion
-from alignn.utils import BaseSettings
-import torchvision
-import random
+
+# import dgl
+# import dgl.function as fn
+# import numpy as np
+# import torch
+# from dgl.nn.functional import edge_softmax
+# from pydantic.typing import Literal
+# from torch import nn
+# from torch.nn import functional as F
+# from matplotlib import pyplot as plt
+# from typing import Tuple, Union
+# import numpy as np
+# import torch
+# from skimage import graph, data, io, segmentation, color
+# from atomvision.models.alignn_classifier import ALIGNN
+# from alignn.models.alignn import ALIGNNConfig
+# from skimage.future import graph
+# from torch import nn, optim
+# from torch.utils.data import DataLoader
+# import numpy as np
+# from PIL import Image
+# import torchvision.models as models
+# from alignn.utils import BaseSettings
+# import torchvision
+# import random
 
 random_seed = 123
 ignite.utils.manual_seed(random_seed)
@@ -80,7 +80,7 @@ plt.switch_backend("agg")
 def show_img(img, filename=None):
     width = 10.0
     height = img.shape[0] * width / img.shape[1]
-    f = plt.figure(figsize=(width, height))
+    plt.figure(figsize=(width, height))
     plt.imshow(img)
     if filename is not None:
         plt.savefig(filename)
@@ -221,7 +221,8 @@ class ALIGNN(nn.Module):
         )
 
         self.readout = AvgPooling()
-
+        # Note 5 classes hard-coded here
+        # TODO: Make it an input parameter
         if self.classification:
             self.fc = nn.Linear(config.hidden_features, 5)
             self.softmax = nn.LogSoftmax(dim=1)
@@ -373,6 +374,14 @@ if __name__ == "__main__":
         model = densenet(num_labels=int(args.num_classes))
     elif model_name == "resnet":
         model = resnet(num_labels=int(args.num_classes))
+    elif model_name == "vgg":
+        model = vgg(num_labels=int(args.num_classes))
+    elif model_name == "googlenet":
+        model = googlenet(num_labels=int(args.num_classes))
+    elif model_name == "mobilenet":
+        model = mobilenet(num_labels=int(args.num_classes))
+    elif model_name == "squeezenet":
+        model = squeezenet(num_labels=int(args.num_classes))
     elif model_name == "alignn_cf":
         model = ALIGNN(
             ALIGNNConfig(
@@ -409,7 +418,7 @@ if __name__ == "__main__":
         return -val_loss
 
     handler = EarlyStopping(
-        patience=10, score_function=score_function, trainer=trainer
+        patience=20, score_function=score_function, trainer=trainer
     )
     val_evaluator.add_event_handler(Events.COMPLETED, handler)
 
@@ -423,7 +432,7 @@ if __name__ == "__main__":
         training_history["accuracy"].append(accuracy)
         training_history["loss"].append(loss)
         print(
-            "Training Results - Epoch: {}  Avg accuracy: {:.2f} Avg loss: {:.2f}".format(
+            "Training-Epoch:{}  Avg acc: {:.2f} Avg loss: {:.2f}".format(
                 trainer.state.epoch, accuracy, loss
             )
         )
@@ -436,7 +445,7 @@ if __name__ == "__main__":
         validation_history["accuracy"].append(accuracy)
         validation_history["loss"].append(loss)
         print(
-            "Validation Results - Epoch: {}  Avg accuracy: {:.2f} Avg loss: {:.2f}".format(
+            "Validation-Epoch: {}  Avg acc: {:.2f} Avg loss: {:.2f}".format(
                 trainer.state.epoch, accuracy, loss
             )
         )
@@ -451,9 +460,25 @@ if __name__ == "__main__":
         cm = cm.numpy()
         cm = cm.astype(int)
         classes = ["0", "1", "2", "3", "4"]
-        fig, ax = plt.subplots(figsize=(10, 10))
+        plt.rcParams.update({"font.size": 20})
+        fig, ax = plt.subplots(figsize=(16, 16))
         ax = plt.subplot()
-        sns.heatmap(cm, annot=True, ax=ax, fmt="d")
+        cm1 = cm / cm.sum(axis=1)[:, np.newaxis]
+        sns.heatmap(
+            cm1,
+            annot=True,
+            ax=ax,
+            fmt=".1%",
+            cbar=False,
+            square=True,
+            cmap=sns.diverging_palette(20, 220, n=200),
+        )
+        try:
+            print("CM", cm1)
+            dumpjson(data=(cm1.tolist()), filename="cm.json")
+        except Exception:
+            pass
+        # sns.heatmap(cm, annot=True, ax=ax, fmt="d")
         # labels, title and ticks
         ax.set_xlabel("Predicted labels")
         ax.set_ylabel("True labels")
