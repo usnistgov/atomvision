@@ -1,3 +1,4 @@
+"""Module for focal loss."""
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -17,7 +18,7 @@ def one_hot(
     r"""Converts an integer label x-D tensor to a one-hot (x+1)-D tensor.
 
     Args:
-        labels: tensor with labels of shape :math:`(N, *)`, where N is batch size.
+        labels: tensor with shape :math:`(N, *)`, where N is batch size.
           Each value is an integer representing correct classification.
         num_classes: number of classes in labels.
         device: the desired device of returned tensor.
@@ -87,8 +88,9 @@ def focal_loss(
        - :math:`p_t` is the model's estimated probability for each class.
 
     Args:
-        input: logits tensor with shape :math:`(N, C, *)` where C = number of classes.
-        target: labels tensor with shape :math:`(N, *)` where each value is :math:`0 ≤ targets[i] ≤ C−1`.
+        input: logits with shape :math:`(N, C, *)` where C = number of classes.
+        target: labels  with shape :math:`(N, *)`
+                where each value is :math:`0 ≤ targets[i] ≤ C−1`.
         alpha: Weighting factor :math:`\alpha \in [0, 1]`.
         gamma: Focusing parameter :math:`\gamma >= 0`.
         reduction: Specifies the reduction to apply to the
@@ -105,7 +107,8 @@ def focal_loss(
         >>> N = 5  # num_classes
         >>> input = torch.randn(1, N, 3, 5, requires_grad=True)
         >>> target = torch.empty(1, 3, 5, dtype=torch.long).random_(N)
-        >>> output = focal_loss(input, target, alpha=0.5, gamma=2.0, reduction='mean')
+        >>> output = focal_loss(input, target,
+            alpha=0.5, gamma=2.0, reduction='mean')
         >>> output.backward()
     """
     if not isinstance(input, torch.Tensor):
@@ -120,7 +123,7 @@ def focal_loss(
 
     if input.size(0) != target.size(0):
         raise ValueError(
-            "Expected input batch_size ({}) to match target batch_size ({}).".format(
+            "Input batch_sz ({}) to match target batch_sz ({}).".format(
                 input.size(0), target.size(0)
             )
         )
@@ -134,7 +137,7 @@ def focal_loss(
 
     if not input.device == target.device:
         raise ValueError(
-            "input and target must be in the same device. Got: {} and {}".format(
+            "input and target  device difference.{} and {}".format(
                 input.device, target.device
             )
         )
@@ -280,7 +283,7 @@ def binary_focal_loss_with_logits(
 
     if input.size(0) != target.size(0):
         raise ValueError(
-            "Expected input batch_size ({}) to match target batch_size ({}).".format(
+            "Input batch_sz ({}) to match target batch_sz ({}).".format(
                 input.size(0), target.size(0)
             )
         )

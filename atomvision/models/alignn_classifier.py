@@ -1,6 +1,6 @@
-from skimage.future import graph
+"""Module for alternate ALIGNN CF."""
 from skimage.future.graph import rag_mean_color
-from skimage import graph, data, io, segmentation, color
+from skimage import segmentation, color
 import dgl
 import torch
 import cv2
@@ -8,40 +8,45 @@ import numpy as np
 from skimage.measure import regionprops
 from skimage import draw
 from matplotlib import pyplot as plt
-from typing import Tuple, Union
-from alignn.models.alignn import ALIGNNConfig,MLPLayer,ALIGNNConv,EdgeGatedGraphConv
-import dgl
-import dgl.function as fn
-import numpy as np
-import torch
+from alignn.models.alignn import (
+    ALIGNNConfig,
+    MLPLayer,
+    ALIGNNConv,
+    EdgeGatedGraphConv,
+)
 from dgl.nn import AvgPooling
-
-# from dgl.nn.functional import edge_softmax
-from pydantic.typing import Literal
 from torch import nn
-from torch.nn import functional as F
-
 from alignn.models.utils import RBFExpansion
-from alignn.utils import BaseSettings
 import torchvision
 
-#%matplotlib inline
+# %matplotlib inline
+# from alignn.utils import BaseSettings
+# from torch.nn import functional as F
+# from skimage.future import graph
+# from skimage import graph, data, io, segmentation, color
+# from typing import Tuple, Union
+# import dgl
+# import dgl.function as fn
+# from dgl.nn.functional import edge_softmax
+# from pydantic.typing import Literal
 
 
-def show_img(img,filename=None):
+def show_img(img, filename=None):
     width = 10.0
     height = img.shape[0] * width / img.shape[1]
-    f = plt.figure(figsize=(width, height))
+    plt.figure(figsize=(width, height))
     plt.imshow(img)
     if filename is not None:
         plt.savefig(filename)
         plt.close()
 
+
 def compute_edge_props(edges):
     r1 = -edges.src["r"]
     r2 = edges.dst["r"]
-    diffs =r2-r1
+    diffs = r2 - r1
     return {"h": diffs}
+
 
 def display_edges(image, g, threshold):
     image = image.copy()
@@ -57,8 +62,14 @@ def display_edges(image, g, threshold):
 
     return image
 
+
 def image_to_dgl_graph(
-    img=[], n_segments=300, compactness=30, resize=None, plot=True,filename=None
+    img=[],
+    n_segments=300,
+    compactness=30,
+    resize=None,
+    plot=True,
+    filename=None,
 ):
     if resize is not None:
         img = cv2.resize(
@@ -96,21 +107,24 @@ def image_to_dgl_graph(
     g = dgl.from_networkx(rag)
     if plot:
         edges_drawn_all = display_edges(label_rgb, rag, np.inf)
-        show_img(edges_drawn_all,filename=filename)
+        show_img(edges_drawn_all, filename=filename)
 
-    g.ndata["atom_features"] = torch.tensor(np.array(node_features)).type(torch.get_default_dtype())
+    g.ndata["atom_features"] = torch.tensor(np.array(node_features)).type(
+        torch.get_default_dtype()
+    )
     edge_data = torch.tensor(
         np.array([i[2]["weight"] for i in ((list(rag.edges.data())) * 2)])
     )  # NEED TO CHECK SRC/DST connections
     g.edata["r"] = edge_data.type(torch.get_default_dtype())
-    lg=g.line_graph(shared=True)
+    lg = g.line_graph(shared=True)
     lg.apply_edges(compute_edge_props)
-    return g,lg #,rag
+    return g, lg  # ,rag
 
 
 def image_reshape(img):
-    imgr = torchvision.transforms.functional.to_tensor(img)[np.newaxis,...]
+    imgr = torchvision.transforms.functional.to_tensor(img)[np.newaxis, ...]
     return imgr
+
 
 class ALIGNN(nn.Module):
     """Atomistic Line graph network.
@@ -129,13 +143,19 @@ class ALIGNN(nn.Module):
         )
 
         self.edge_embedding = nn.Sequential(
-            RBFExpansion(vmin=0, vmax=8.0, bins=config.edge_input_features,),
+            RBFExpansion(
+                vmin=0,
+                vmax=8.0,
+                bins=config.edge_input_features,
+            ),
             MLPLayer(config.edge_input_features, config.embedding_features),
             MLPLayer(config.embedding_features, config.hidden_features),
         )
         self.angle_embedding = nn.Sequential(
             RBFExpansion(
-                vmin=-1, vmax=1.0, bins=config.triplet_input_features,
+                vmin=-1,
+                vmax=1.0,
+                bins=config.triplet_input_features,
             ),
             MLPLayer(config.triplet_input_features, config.embedding_features),
             MLPLayer(config.embedding_features, config.hidden_features),
@@ -143,7 +163,10 @@ class ALIGNN(nn.Module):
 
         self.alignn_layers = nn.ModuleList(
             [
-                ALIGNNConv(config.hidden_features, config.hidden_features,)
+                ALIGNNConv(
+                    config.hidden_features,
+                    config.hidden_features,
+                )
                 for idx in range(config.alignn_layers)
             ]
         )
@@ -177,18 +200,19 @@ class ALIGNN(nn.Module):
             self.link = torch.sigmoid
 
     def forward(
-        #self, g: Union[Tuple[dgl.DGLGraph, dgl.DGLGraph], dgl.DGLGraph]
-        self, image
+        # self, g: Union[Tuple[dgl.DGLGraph, dgl.DGLGraph], dgl.DGLGraph]
+        self,
+        image,
     ):
         """ALIGNN : start with `atom_features`.
         x: atom features (g.ndata)
         y: bond features (g.edata and lg.ndata)
         z: angle features (lg.edata)
         """
-        g, lg = image_to_dgl_graph(image,resize=[256, 256])
-        
+        g, lg = image_to_dgl_graph(image, resize=[256, 256])
+
         if len(self.alignn_layers) > 0:
-            #g, lg = g
+            # g, lg = g
             lg = lg.local_var()
 
             # angle features (fixed)
@@ -201,7 +225,7 @@ class ALIGNN(nn.Module):
         x = self.atom_embedding(x)
 
         # initial bond features
-        bondlength = g.edata.pop("r") #torch.norm(g.edata.pop("r"), dim=1)
+        bondlength = g.edata.pop("r")  # torch.norm(g.edata.pop("r"), dim=1)
         y = self.edge_embedding(bondlength)
 
         # ALIGNN updates: update node, edge, triplet features
@@ -224,7 +248,9 @@ class ALIGNN(nn.Module):
             out = self.softmax(out)
         return torch.squeeze(out)
 
-#img = cv2.imread("JARVIS-2D-STM-JPG/JARVIS-2D-STM-JPG/JVASP-723_pos.jpg")
-#g, lg = image_to_dgl_graph(img,resize=[256, 256],filename='x.png')
-#model = ALIGNN(ALIGNNConfig(name='alignn',atom_input_features=9,classification=True))
-#model(img)
+
+# img = cv2.imread("JARVIS-2D-STM-JPG/JARVIS-2D-STM-JPG/JVASP-723_pos.jpg")
+# g, lg = image_to_dgl_graph(img,resize=[256, 256],filename='x.png')
+# model = ALIGNN(ALIGNNConfig
+# (name='alignn',atom_input_features=9,classification=True))
+# model(img)
