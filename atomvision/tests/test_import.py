@@ -19,9 +19,9 @@ def test_stemconv():
     p = STEMConv(atoms=c).simulate_surface(c)
 
 
-def test_gcn():
-    x = localization(Path(config_json_file))
-    y = gcn(Path(config_json_file))
+#def test_gcn():
+#    x = localization(Path(config_json_file))
+#    y = gcn(Path(config_json_file))
 
 
 # test_stemconv()
