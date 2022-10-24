@@ -26,6 +26,8 @@ def log_confusion_matrix(val_evaluator, val_loader, n_classes=5):
         annot=True,
         ax=ax,
         fmt=".1%",
+        square=True,
+        cbar=False,
         cmap=sns.diverging_palette(20, 220, n=200),
     )
     # labels, title and ticks
@@ -57,11 +59,11 @@ def performance_traces(history, output_dir="."):
     plt.close()
     print("history")
     print(pprint.pprint(history))
-    # dumpjson(
-    #    filename=os.path.join(output_dir, "history_val.json"),
-    #    data=history["validation"],
-    # )
-    # dumpjson(
-    #    filename=os.path.join(output_dir, "history_train.json"),
-    #    data=history["train"],
-    # )
+    dumpjson(
+        filename=os.path.join(output_dir, "history_val.json"),
+        data=history["validation"]["accuracy"],
+    )
+    dumpjson(
+        filename=os.path.join(output_dir, "history_train.json"),
+        data=history["train"]["accuracy"],
+    )

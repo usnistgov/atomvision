@@ -312,7 +312,8 @@ def main(
 
 
 if __name__ == "__main__":
-    main()
+    info = data("dft_2d")
+    main(info=info, config_file="config_alignn.json", test_size=0.25)
     # Get Images from the JARVIS 2D Dataset
 
     # default test_size is 0.25
