@@ -14,9 +14,11 @@ from typing import Optional, List, Dict, Any
 from skimage import measure
 from scipy.spatial import KDTree
 import networkx as nx
+import os
+from tqdm import tqdm
 
 
-LABEL_MODES = {"delta", "radius"}
+LABEL_MODES = {"delta", "radius", "predicted"}
 
 # atomic radii
 pt = pd.DataFrame(chem_data).T
@@ -25,11 +27,9 @@ RADII = {int(row.Z): row.atom_rad for id, row in pt.iterrows()}
 
 
 def atomic_radius_mask(shape, X, N, px_scale=0.1):
-    """Atom localization masks, with footprints scaled to atomic radii.
-
-    Atoms occluding each other along the Z (transmission) dimension are
-    not guaranteed to be masked nicely; these are not multilabel masks
-    """
+    """Atom localization masks, with footprints scaled to atomic radii."""
+    # Atoms occluding each other along the Z (transmission) dimension are
+    # not guaranteed to be masked nicely; these are not multilabel masks
     labels = np.zeros(shape, dtype=int)
     for x, n in zip(X, N):
 
@@ -42,7 +42,7 @@ def atomic_radius_mask(shape, X, N, px_scale=0.1):
 
 
 class Jarvis2dSTEMDataset:
-    """Simulated STEM dataset (jarvis dft_2d)"""
+    """Module for Simulated STEM dataset."""
 
     def __init__(
         self,
@@ -53,6 +53,7 @@ class Jarvis2dSTEMDataset:
         shift_angstrom: Optional[float] = None,
         zoom_pct: Optional[float] = None,
         to_tensor: Optional[Callable] = None,
+        localization_model=None,
         n_train=None,
         n_val=None,
         n_test=None,
@@ -60,11 +61,14 @@ class Jarvis2dSTEMDataset:
         test_frac=0.1,
         keep_data_order=False,
     ):
-        """Simulated STEM dataset, jarvis-2d data
-
+        """Intialize Simulated STEM dataset."""
+        """
         px_scale: pixel size in angstroms
         label_mode: `delta` or `radius`, controls atom localization mask style
+        adding label mode "predicted" to generate mask using loaded
+        localization model
 
+        For "predicted" labelling, localization_model cannot be None
         ## augmentation settings
         rotation_degrees: if specified, sample from
         Unif(-rotation_degrees, rotation_degrees)
@@ -82,7 +86,7 @@ class Jarvis2dSTEMDataset:
         self.px_scale = px_scale
         self.label_mode = label_mode
         self.to_tensor = to_tensor
-
+        self.model = localization_model
         self.rotation_degrees = rotation_degrees
         self.shift_angstrom = shift_angstrom
         self.zoom_pct = zoom_pct
@@ -125,7 +129,7 @@ class Jarvis2dSTEMDataset:
         val_frac: float = 0.1,
         test_frac: float = 0.1,
     ):
-
+        """Split dataset."""
         N = len(self.df)
         if n_train is None:
             n_val = int(N * val_frac)
@@ -153,11 +157,11 @@ class Jarvis2dSTEMDataset:
         return train_ids, val_ids, test_ids
 
     def __len__(self):
-        """Datset size: len(jarvis_2d)"""
+        """Get Datset size: len(jarvis_2d)."""
         return self.df.shape[0]
 
     def __getitem__(self, idx):
-        """Sample: image, label mask, atomic coords, numbers, structure ids."""
+        """Get Sample:image,label mask,atomic coords,numbers,structure ids."""
         row = self.df.iloc[idx]
         # print (row.jid)
         a = Atoms.from_dict(row.atoms)
@@ -189,6 +193,13 @@ class Jarvis2dSTEMDataset:
 
         if self.label_mode == "radius":
             label = atomic_radius_mask(image.shape, pos, nb, px_scale)
+        # elif self.label_mode == "predicted":
+        #    from atomvision.models.segmentation_utils
+        #    import get_segmented_image
+        #    label = get_segmented_image(image, self.model)
+
+        else:
+            raise ValueError("Currently unsupported label mode")
 
         if self.to_tensor is not None:
             image = self.to_tensor(torch.tensor(image))
@@ -203,8 +214,8 @@ class Jarvis2dSTEMDataset:
         return sample
 
     def get_rotation_series(self, idx, angles=np.linspace(0, 90, 32)):
-        """helper for evaluating models through a series of augmentations.
-
+        """Get a series of augmentations."""
+        """
         ```python
         samples = dataset.get_rotation_series(0)
         angle_batch = dataloader.collate_fn(samples)
@@ -257,11 +268,37 @@ class Jarvis2dSTEMDataset:
         return samples
 
 
+def write_image_directory(dft_2d, train_ids, test_ids, outdir="stem"):
+    """Write images to directory."""
+    if not os.path.isdir(outdir):
+        os.mkdir(outdir)
+    train_list = []
+    test_list = []
+    for i in tqdm(dft_2d):
+        structure = Atoms.from_dict(i["atoms"])
+        img = STEMConv(output_size=[256, 256]).simulate_surface(
+            structure, px_scale=0.1, eps=0.6
+        )[0]
+        img = np.array(img) / np.amax(img)
+        label = get_2d_lattice(structure.to_dict())[1]
+        np.savetxt(os.path.join(outdir, i["jid"] + ".txt"), img, delimiter=",")
+        if i["jid"] in train_ids:
+            train_list.append([i["jid"], label])
+        elif i["jid"] in test_ids:
+            test_list.append([i["jid"], label])
+    np.savetxt(
+        os.path.join(outdir, "training_set_labels.txt"), train_list, fmt="%s"
+    )
+    np.savetxt(
+        os.path.join(outdir, "test_set_labels.txt"), test_list, fmt="%s"
+    )
+    return np.array(train_list), np.array(test_list)
+
+
 def atom_mask_to_graph(label, image, px_angstrom=0.1, cutoff_angstrom=4):
-    """Construct attributed atomistic graph from foreground mask
-
+    """Construct attributed atomistic graph from foreground mask."""
+    """
     px_angstrom: pixel size in angstrom
-
     Performs connected component analysis on label image
     Computes region properties (centroids, radius, mean intensity)
     Constructs a radius graph of atoms within `cutoff` (px)
@@ -327,8 +364,8 @@ def to_dgl(g):
 
 
 def build_prepare_graph_batch(model, prepare_image_batch):
-    """Close over atom localization model and image batch prep.
-
+    """Close over atom localization model and image batch prep."""
+    """
     Running the pixel classifier like this in the dataloader
     is not the most efficient. It might be viable to put this
     inside a closure used for a dataloader collate_fn. This would
