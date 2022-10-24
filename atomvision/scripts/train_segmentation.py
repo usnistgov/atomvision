@@ -26,6 +26,15 @@ from ignite.metrics import Accuracy, Loss
 from ignite.utils import setup_logger
 from torch import nn
 from torch.utils.data import DataLoader, SubsetRandomSampler
+import random
+import ignite
+
+random_seed = 123
+ignite.utils.manual_seed(random_seed)
+torch.manual_seed(random_seed)
+random.seed(0)
+np.random.seed(random_seed)
+torch.backends.cudnn.deterministic = True
 
 
 class DatasetSettings(pydantic.BaseSettings):

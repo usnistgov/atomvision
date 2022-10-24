@@ -62,6 +62,16 @@ from ignite.engine import (
     create_supervised_evaluator,
 )
 import matplotlib.pyplot as plt
+import random
+import ignite
+
+random_seed = 123
+ignite.utils.manual_seed(random_seed)
+torch.manual_seed(random_seed)
+random.seed(0)
+np.random.seed(random_seed)
+torch.backends.cudnn.deterministic = True
+
 
 plt.switch_backend("agg")
 
