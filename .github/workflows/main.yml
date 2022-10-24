@@ -19,7 +19,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        python -m pip install numpy scipy matplotlib
+        python -m pip install numpy scipy matplotlib==3.6.0
         python setup.py install
 
     - name: Lint
