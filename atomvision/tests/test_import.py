@@ -24,5 +24,5 @@ def test_gcn():
     y = gcn(Path(config_json_file))
 
 
-test_stemconv()
-test_gcn()
+# test_stemconv()
+# test_gcn()
