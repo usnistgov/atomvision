@@ -99,6 +99,7 @@ def get_combined_data():
         + "_"
         + str((Atoms.from_dict(x)).get_spacegroup[0])
     )
+    twod_matp["id"] = twod_matp["material_id"]
     dft_2d["spg_formula"] = dft_2d["atoms"].apply(
         lambda x: (Atoms.from_dict(x)).composition.reduced_formula
         + "_"
@@ -187,3 +188,7 @@ def get_combined_data():
             # line_graphs.append(lg)
 
     os.chdir(cwd)
+
+
+if __name__ == "__main__":
+    get_combined_data()
