@@ -1,8 +1,25 @@
 
 [![name](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/knc6/jarvis-tools-notebooks/blob/master/jarvis-tools-notebooks/AtomVisionExample.ipynb)
 # Atomvision
-Atomvision:  A deep learning framework for atomistic image data
 
+
+# Table of Contents
+* [Introduction](#intro)
+* [Installation](#install)
+* [Examples](#example)
+* [Reference](#reference)
+* [How to contribute](#contrib)
+* [Correspondence](#corres)
+* [Funding support](#fund)
+
+
+<a name="intro"></a>
+Introduction
+-------------------------
+Atomvision is a deep learning framework for atomistic image data
+
+
+<a name="install"></a>
 Installation
 -------------------------
 First create a conda environment:
@@ -32,6 +49,7 @@ python setup.py develop
 ```
 
 
+<a name="example"></a>
 Examples
 ---------
 
@@ -64,11 +82,36 @@ train_autoencoder.py --train_folder atomvision/sample_data/test_folder --test_fo
 ```
 
 
-Citing
+<a name="reference"></a>
+Reference
 ---------
 
-Please cite the following if you happen to use JARVIS-Tools for a publication.
+1) [The joint automated repository for various integrated simulations (JARVIS) for data-driven materials design](https://www.nature.com/articles/s41524-020-00440-1)
 
-https://www.nature.com/articles/s41524-020-00440-1
+2) [Computational scanning tunneling microscope image database](https://www.nature.com/articles/s41597-021-00824-y)
 
-Choudhary, K. et al. The joint automated repository for various integrated simulations (JARVIS) for data-driven materials design. npj Computational Materials, 6(1), 1-13 (2020).
+Please see detailed publications list [here](https://jarvis-tools.readthedocs.io/en/master/publications.html).
+
+<a name="contrib"></a>
+How to contribute
+-----------------
+
+For detailed instructions, please see [Contribution instructions](https://github.com/usnistgov/jarvis/blob/master/Contribution.rst)
+
+<a name="corres"></a>
+Correspondence
+--------------------
+
+Please report bugs as Github issues (https://github.com/usnistgov/atomvision/issues) or email to kamal.choudhary@nist.gov.
+
+<a name="fund"></a>
+Funding support
+--------------------
+
+NIST-MGI (https://www.nist.gov/mgi).
+
+Code of conduct
+--------------------
+
+Please see [Code of conduct](https://github.com/usnistgov/jarvis/blob/master/CODE_OF_CONDUCT.md)
+
