@@ -35,12 +35,13 @@ bash Miniconda3-latest-MacOSX-x86_64.sh (for Mac)
 Download 32/64 bit python 3.6 miniconda exe and install (for windows)
 Now, let's make a conda environment, say "version", choose other name as you like::
 ```
-conda create --name version python=3.8
-source activate version
+conda create --name vision python=3.8
+source activate vision
 ```
 
 Now, let's install the package:
 
+#### Method 1 (using setup.py):
 
 ```
 git clone https://github.com/usnistgov/atomvision.git
@@ -48,6 +49,12 @@ cd atomvision
 python setup.py develop
 ```
 
+#### Method 2 (using pypi):
+
+As an alternate method, AtomVision can also be installed using `pip` command as follows:
+```
+pip install atomvision
+```
 
 <a name="example"></a>
 Examples
