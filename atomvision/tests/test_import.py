@@ -1,6 +1,4 @@
 from pathlib import Path
-from atomvision.models.gcn import localization, gcn
-from atomvision.models.cnn_classifiers import densenet
 from atomvision.data.stemconv import STEMConv
 import os
 from jarvis.core.atoms import Atoms, crop_square
