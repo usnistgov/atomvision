@@ -1,5 +1,12 @@
 
 [![name](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/knc6/jarvis-tools-notebooks/blob/master/jarvis-tools-notebooks/AtomVisionExample.ipynb)
+![alt text](https://github.com/usnistgov/atomvision/actions/workflows/main.yml/badge.svg)
+[![codecov](https://codecov.io/gh/usnistgov/atomvision/branch/master/graph/badge.svg?token=S5X4OYC80V)](https://codecov.io/gh/usnistgov/atomvision)
+[![PyPI version](https://badge.fury.io/py/atomvision.svg)](https://badge.fury.io/py/atomvision)
+![GitHub tag (latest by date)](https://img.shields.io/github/v/tag/usnistgov/atomvision)
+![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/usnistgov/atomvision)
+![GitHub commit activity](https://img.shields.io/github/commit-activity/y/usnistgov/atomvision)
+[![Downloads](https://pepy.tech/badge/atomvision)](https://pepy.tech/project/atomvision)
 # Atomvision
 
 
