@@ -17,7 +17,10 @@ from ignite.engine import (
     create_supervised_evaluator,
 )
 from ignite.metrics import Accuracy, Loss, RunningAverage, ConfusionMatrix
-from ignite.handlers import ModelCheckpoint, EarlyStopping
+
+# from ignite.handlers import ModelCheckpoint, EarlyStopping
+from ignite.handlers import EarlyStopping
+from ignite.handlers import Checkpoint, DiskSaver
 from atomvision.models.cnn_classifiers import (
     densenet,
     googlenet,
@@ -488,13 +491,19 @@ if __name__ == "__main__":
         plt.savefig("CM.png")
         plt.close()
 
-    # Cheange n_save if we need to store more models
-    checkpointer = ModelCheckpoint(
-        output_dir, "output", n_saved=2, create_dir=True, require_empty=False
+    checkpoint_handler = Checkpoint(
+        {
+            "model": model,
+            "optimizer": optimizer,
+            "trainer": trainer,
+        },
+        DiskSaver(output_dir, create_dir=True, require_empty=False),
+        filename_prefix="atomvision",
+        n_saved=2,
+        global_step_transform=lambda *_: trainer.state.epoch,
     )
-    trainer.add_event_handler(
-        Events.EPOCH_COMPLETED, checkpointer, {"output": model}
-    )
+    trainer.add_event_handler(Events.EPOCH_COMPLETED, checkpoint_handler)
+
     trainer.run(train_loader, max_epochs=epochs)
     plt.plot(training_history["accuracy"], label="Training Accuracy")
     plt.plot(validation_history["accuracy"], label="Validation Accuracy")

@@ -28,24 +28,40 @@ Now, let's install the package:
 ```
 git clone https://github.com/usnistgov/atomvision.git
 cd atomvision
-pip install torchvision
 python setup.py develop
 ```
 
 
 Examples
 ---------
-This example shows how to classify 2D-lattice (5 classes) for 2D-materials STM/STEM images.
 
-Datasets can be generated with STM/STEM sections of the `data` folder with ``generate_data.py`` script or pre-populated image datasets can be downloaded with 'download.py`. We create two folders ``train_folder``, ``test_folder`` with sub-folders ``0,1,2,3,4,...`` for individual classes and they contain images for these classes in way train-test splits have proportionate amount of images.
-An example for using pre-trained densenet on STEM JARVIS-DFT 2D dataset is given below. Change ``train_folder`` and ``test_folder`` paths in order to use a different dataset.
+#### 2D-Bravais lattice classification example
+This example shows how to classify 2D-lattice (5 Bravais classes) for 2D-materials STM/STEM images.
+
+We will use images``sample_data`` folder. It was generated with ``generate_stem.py`` script. There are  two folders ``train_folder``, ``test_folder`` with sub-folders ``0,1,2,3,4,...`` for individual classes and they contain images for these classes.
 
 ```
-python atomvision/scripts/train_classifiers.py --model_name densenet --train_folder atomvision/data/classification/stem_jv2d/train_folder --test_folder atomvision/data/classification/stem_jv2d/test_folder
+train_classifier_cnn.py --model densenet --train_folder atomvision/sample_data/test_folder --test_folder atomvision/sample_data/test_folder --epochs 5 --batch_size 16
 ```
 
 
-Note: the repository is under development.
+#### Generating a t-SNE  plot
+
+```
+train_tsne.py --data_dir atomvision/sample_data/test_folder
+```
+
+#### Generative Adversarial Network
+
+```
+train_gan.py --dataset_path atomvision/sample_data/test_folder/0 --epochs 2
+```
+
+#### Autoencoder
+
+```
+train_autoencoder.py --train_folder atomvision/sample_data/test_folder --test_folder atomvision/sample_data/test_folder --epochs 10
+```
 
 
 Citing
