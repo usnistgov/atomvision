@@ -26,7 +26,7 @@ setuptools.setup(
         "Pillow>=9.2.0",
         "torchvision==0.13.0",
         "scikit-learn>=0.24.1",
-        "matplotlib<=3.4.1",
+        "matplotlib>=3.4.1",
         "seaborn>=0.11.2",
         "tqdm>=4.60.0",
         "pandas==1.2.4",
