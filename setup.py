@@ -13,7 +13,7 @@ setuptools.setup(
         "numpy>=1.19.5",
         "scipy>=1.6.3",
         "jarvis-tools>=2021.07.19",
-        "alignn>=2022.10.23",
+        # "alignn>=2022.10.23",
         "beautifulsoup4>=4.11.1",
         "scikit-image>=0.19.3",
         "torch==1.12.0",
