@@ -67,6 +67,14 @@ pip install atomvision
 Examples
 ---------
 
+
+#### Generating STEM image with convolution approximation: graphene example
+
+```
+stem_conv.py --file_path atomvision/tests/POSCAR --output_path STEM.png
+```
+
+
 #### 2D-Bravais lattice classification example
 This example shows how to classify 2D-lattice (5 Bravais classes) for 2D-materials STM/STEM images.
 

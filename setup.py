@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="atomvision",
-    version="2022.10.23",
+    version="2022.11.19",
     author="Kamal Choudhary, Brian DeCost",
     author_email="kamal.choudhary@nist.gov",
     description="atomvision",
@@ -26,7 +26,7 @@ setuptools.setup(
         "Pillow>=9.2.0",
         "torchvision==0.13.0",
         "scikit-learn>=0.24.1",
-        "matplotlib>=3.6.0",
+        "matplotlib>=3.4.1",
         "seaborn>=0.11.2",
         "tqdm>=4.60.0",
         "pandas==1.2.4",
@@ -43,6 +43,7 @@ setuptools.setup(
         "atomvision/scripts/train_autoencoder.py",
         "atomvision/scripts/train_classifier_alignn.py",
         "atomvision/scripts/train_segmentation.py",
+        "atomvision/scripts/stem_conv.py",
     ],
     long_description=long_description,
     long_description_content_type="text/markdown",
