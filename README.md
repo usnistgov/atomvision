@@ -23,8 +23,13 @@
 <a name="intro"></a>
 Introduction
 -------------------------
-Atomvision is a deep learning framework for atomistic image data
+Atomvision is a deep learning framework for atomistic image data.
 
+
+
+<p align="center">
+   <img src="https://github.com/usnistgov/atomvision/blob/develop/atomvision/AVFigure.PNG" alt="AtomVision"  width="600"/>
+</p>
 
 <a name="install"></a>
 Installation
@@ -108,9 +113,11 @@ train_autoencoder.py --train_folder atomvision/sample_data/test_folder --test_fo
 Reference
 ---------
 
-1) [The joint automated repository for various integrated simulations (JARVIS) for data-driven materials design](https://www.nature.com/articles/s41524-020-00440-1)
+1) [AtomVision: A machine vision library for atomistic images](https://arxiv.org/abs/2212.02586)
 
-2) [Computational scanning tunneling microscope image database](https://www.nature.com/articles/s41597-021-00824-y)
+2) [The joint automated repository for various integrated simulations (JARVIS) for data-driven materials design](https://www.nature.com/articles/s41524-020-00440-1)
+
+3) [Computational scanning tunneling microscope image database](https://www.nature.com/articles/s41597-021-00824-y)
 
 Please see detailed publications list [here](https://jarvis-tools.readthedocs.io/en/master/publications.html).
 
