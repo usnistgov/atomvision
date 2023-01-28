@@ -16,7 +16,7 @@ setuptools.setup(
         "alignn>=2022.10.23",
         "beautifulsoup4>=4.11.1",
         "scikit-image>=0.19.3",
-        "torch==1.12.0",
+        "torch==1.13.1",
         "pyparsing==2.2.1",
         "opencv-python>=4.6.0.66",
         "typer",
