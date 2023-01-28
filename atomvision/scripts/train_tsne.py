@@ -28,7 +28,7 @@ def train_tsne(
     perplexity=30,
     filename=None,
 ):
-
+    """Get T-SNE clustering."""
     #     transform = transforms.Compose(
     #         [
     #             transforms.ToTensor(),
@@ -120,10 +120,14 @@ parser.add_argument(
     help="Folder with training images. Each class should have its own folder.",
 )
 
+
 def labelled_images_to_graphs(images, labels, border_pxl=0, saveto=""):
     """
-    images: list of image arrays
-    labels: list of corresponding class labels
+    Convert labelled images to graphs.
+
+    Args:
+         images: list of image arrays
+         labels: list of corresponding class labels
     """
     graphs = []
     line_graphs = []
@@ -138,13 +142,15 @@ def labelled_images_to_graphs(images, labels, border_pxl=0, saveto=""):
         n = n + 1
     return graphs, line_graphs
 
+
 def train_tsne_graph(
     data_dir="New_stem_2d/train_folder",
     image_size=256,
-    border_pxl = 0,
+    border_pxl=0,
     perplexity=30,
-    filename=None,):
-
+    filename=None,
+):
+    """Train T-SNE with Graph features."""
     data = dset.ImageFolder(data_dir)
 
     image_arr = []
@@ -165,18 +171,20 @@ def train_tsne_graph(
         image_arr.append(i)
         label_arr.append(label)
     plt.imshow(image_arr[0])
-    plt.savefig("first_image.pdf", bbox_inches = "tight")
+    plt.savefig("first_image.pdf", bbox_inches="tight")
     print("first image", image_arr[0])
     print("image_dim", image_arr[0].shape)
     print("image_arr len", len(image_arr))
     print("\n------Starting Graph Generation------\n")
 
-    g_arr, lg_arr = labelled_images_to_graphs(np.array(image_arr), label_arr, border_pxl=50)
+    g_arr, lg_arr = labelled_images_to_graphs(
+        np.array(image_arr), label_arr, border_pxl=50
+    )
 
     edges = []
     for lg in lg_arr:
         angles = lg.edata["h"].numpy()
-        hist, bin_edges = np.histogram(angles, 200, (-1,1))
+        hist, bin_edges = np.histogram(angles, 200, (-1, 1))
         edges.append(hist)
     print("\n------Starting TSNE------\n")
 
@@ -220,6 +228,7 @@ def train_tsne_graph(
     else:
         plt.savefig(filename)
         plt.close()
+
 
 if __name__ == "__main__":
     args = parser.parse_args(sys.argv[1:])

@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import sys
 import random
 import argparse
+
 # from jarvis.db.jsonutils import dumpjson
 
 random_seed = 123
@@ -24,9 +25,11 @@ torch.backends.cudnn.deterministic = True
 class AE(nn.Module):
     """Module for auto-encoder."""
 
-    def __init__(self, input_shape=50176, feats=1120):
+    def __init__(self, input_shape=50176, feats=128):
+        # def __init__(self, input_shape=50176, feats=1120):
         # def __init__(self, input_shape=50176,feats=448):
         """Initialize class."""
+        print("Using feature size", feats)
         super().__init__()
         self.encoder_hidden_layer = nn.Linear(
             in_features=input_shape, out_features=feats
@@ -75,6 +78,12 @@ parser.add_argument(
     help="Input size e.g 224x224."
     # "--input_size", default=784, help="Input size e.g 224x224."
 )
+parser.add_argument(
+    "--feat_size",
+    default=1120,
+    help="latent dim size e.g 128."
+    # "--input_size", default=784, help="Input size e.g 224x224."
+)
 parser.add_argument("--epochs", default=200, help="Number of epochs.")
 
 
@@ -89,6 +98,7 @@ if __name__ == "__main__":
     args = parser.parse_args(sys.argv[1:])
     epochs = int(args.epochs)
     input_size = int(args.input_size)
+    feat_size = int(args.feat_size)
     batch_size = int(args.batch_size)
 
     output_dir = args.output_dir
@@ -97,7 +107,7 @@ if __name__ == "__main__":
 
     # create a model from `AE` autoencoder class
     # load it to the specified device, either gpu or cpu
-    model = AE(input_shape=input_size).to(device)
+    model = AE(input_shape=input_size, feats=feat_size).to(device)
 
     # create an optimizer object
     # Adam optimizer with learning rate 1e-3
@@ -165,7 +175,34 @@ if __name__ == "__main__":
         loss = loss / len(train_loader)
 
         # display the epoch training loss
-        print("epoch : {}/{}, loss = {:.6f}".format(epoch + 1, epochs, loss))
+
+        torch.save(model.state_dict(), "ae.pt")
+
+        val_loss = 0
+        with torch.no_grad():
+            for batch_features, _ in test_loader:
+                optimizer.zero_grad()
+                # reshape mini-batch data to [N, 784] matrix
+                # load it to the active device
+                batch_features = batch_features.view(-1, input_size).to(device)
+                # batch_features = batch_features.view(-1, 784).to(device)
+
+                # reset the gradients back to zero
+                # PyTorch accumulates gradients on subsequent backward passes
+
+                # compute reconstructions
+                outputs = model(batch_features)
+
+                # compute training reconstruction loss
+                v_loss = criterion(outputs, batch_features)
+
+                # add the mini-batch training loss to epoch loss
+                val_loss += v_loss.item()
+
+        # compute the epoch training loss
+        val_loss = val_loss / len(test_loader)
+        # print("epoch : {}/{}, loss = {:.6f}".format(epoch + 1, epochs, loss))
+        print("Epoch, train_loss, val_loss", epoch + 1, loss, val_loss)
 
     test_examples = None
     with torch.no_grad():
