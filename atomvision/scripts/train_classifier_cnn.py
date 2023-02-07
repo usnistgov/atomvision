@@ -7,6 +7,7 @@ import torch.optim as optim
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import os
 import sys
 import random
 import argparse
@@ -17,8 +18,6 @@ from ignite.engine import (
     create_supervised_evaluator,
 )
 from ignite.metrics import Accuracy, Loss, RunningAverage, ConfusionMatrix
-
-# from ignite.handlers import ModelCheckpoint, EarlyStopping
 from ignite.handlers import EarlyStopping
 from ignite.handlers import Checkpoint, DiskSaver
 from atomvision.models.cnn_classifiers import (
@@ -45,6 +44,7 @@ from alignn.models.alignn import (
 )
 from dgl.nn import AvgPooling
 from alignn.models.utils import RBFExpansion
+from sklearn.metrics import confusion_matrix
 
 # import dgl
 # import dgl.function as fn
@@ -402,7 +402,8 @@ if __name__ == "__main__":
     metrics = {
         "accuracy": Accuracy(),
         "nll": Loss(criterion),
-        "cm": ConfusionMatrix(num_classes=5),
+        "cm": ConfusionMatrix(num_classes=int(args.num_classes)),
+        # "cm": ConfusionMatrix(num_classes=5),
     }
     train_evaluator = create_supervised_evaluator(
         model, metrics=metrics, device=device
@@ -456,13 +457,14 @@ if __name__ == "__main__":
     trainer.add_event_handler(Events.EPOCH_COMPLETED, log_validation_results)
 
     @trainer.on(Events.COMPLETED)
-    def log_confusion_matrix(trainer):
+    def og_confusion_matrix(trainer):
         val_evaluator.run(val_loader)
         metrics = val_evaluator.state.metrics
         cm = metrics["cm"]
         cm = cm.numpy()
         cm = cm.astype(int)
-        classes = ["0", "1", "2", "3", "4"]
+        classes = val_loader.dataset.classes
+        # classes = ["0", "1", "2", "3", "4"]
         plt.rcParams.update({"font.size": 20})
         fig, ax = plt.subplots(figsize=(16, 16))
         ax = plt.subplot()
@@ -520,3 +522,37 @@ if __name__ == "__main__":
     plt.legend(frameon=False)
     plt.savefig("Loss.png")
     plt.close()
+
+    f = open(
+        os.path.join(output_dir, "prediction_results_test_set.csv"),
+        "w",
+    )
+    f.write("id,target,prediction\n")
+    targets = []
+    predictions = []
+    with torch.no_grad():
+        ids = [os.path.basename(i[0]) for i in val_loader.dataset.imgs]
+        for dat, id in zip(val_dataset, ids):
+            # print (dat[0],dat[0].shape,type(dat[0]))
+            # print (id,model([dat[0].to(device)]))
+            pred = (
+                torch.argmax(model(dat[0][None, :].to(device)))
+                .cpu()
+                .detach()
+                .numpy()
+            )
+            target = dat[1]  # .numpy()
+            targets.append(dat[1])
+            predictions.append(pred)
+            # print(id,pred,target,(pred))
+            f.write("%s, %d, %d\n" % (id, target, pred))
+    cm_sk = np.array(
+        confusion_matrix(
+            targets,
+            predictions,
+            labels=np.arange(int(args.num_classes), dtype="int"),
+        )
+    )
+    cm_sk1 = cm_sk / cm_sk.sum(axis=1)[:, np.newaxis]
+    # print("cm_sk", cm_sk1)
+    f.close()
