@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="atomvision",
-    version="2023.1.27",
+    version="2023.5.5",
     author="Kamal Choudhary, Brian DeCost",
     author_email="kamal.choudhary@nist.gov",
     description="atomvision",
@@ -16,7 +16,7 @@ setuptools.setup(
         "alignn>=2022.10.23",
         "beautifulsoup4>=4.11.1",
         "scikit-image>=0.19.3",
-        "torch==1.12.0",
+        "torch>=1.12.0",
         "pyparsing==2.2.1",
         "opencv-python>=4.6.0.66",
         "typer",
@@ -29,7 +29,7 @@ setuptools.setup(
         "matplotlib>=3.4.1",
         "seaborn>=0.11.2",
         "tqdm>=4.60.0",
-        "pandas==1.2.4",
+        "pandas>=1.2.4",
         "pytorch-ignite==0.5.0.dev20221024",
         "pydantic>=1.8.1",
         "flake8>=3.9.1",
