@@ -24,7 +24,7 @@ setuptools.setup(
         "segmentation-models-pytorch>=0.2.1",
         # "torchvision>=0.10.0+cu111",
         "Pillow>=9.2.0",
-        "torchvision==0.13.0",
+        "torchvision>=0.13.0",
         "scikit-learn>=0.24.1",
         "matplotlib>=3.4.1",
         "seaborn>=0.11.2",
