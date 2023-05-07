@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """Module to train GAN."""
 # https://www.kaggle.com/code/balraj98/
 # single-image-super-resolution-gan-srgan-pytorch

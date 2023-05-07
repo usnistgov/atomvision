@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """Module to train image classification models."""
 import torch
 import torchvision.transforms as transforms

@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """Module for PyTorch autoencoder training."""
 import torch
 import torchvision

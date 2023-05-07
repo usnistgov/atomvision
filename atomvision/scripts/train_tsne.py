@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """Module to perform t-SNE on imamges."""
 import sys
 import argparse

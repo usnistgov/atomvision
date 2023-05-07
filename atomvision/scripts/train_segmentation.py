@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """Module to perform segmentation on atomistic dataset."""
 import torch
 import os
