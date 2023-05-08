@@ -458,7 +458,7 @@ if __name__ == "__main__":
     trainer.add_event_handler(Events.EPOCH_COMPLETED, log_validation_results)
 
     @trainer.on(Events.COMPLETED)
-    def og_confusion_matrix(trainer):
+    def log_confusion_matrix(trainer):
         val_evaluator.run(val_loader)
         metrics = val_evaluator.state.metrics
         cm = metrics["cm"]
