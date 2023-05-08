@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 from atomvision.data.stemconv import STEMConv
 import sys
 import argparse

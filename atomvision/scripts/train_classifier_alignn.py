@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """Module for ALIGNN Image Classifier."""
 import numpy as np
 from jarvis.db.figshare import data
