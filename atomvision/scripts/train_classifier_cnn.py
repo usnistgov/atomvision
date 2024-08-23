@@ -31,7 +31,8 @@ from atomvision.models.cnn_classifiers import (
 )
 from atomvision.scripts.focal_loss import FocalLoss
 from jarvis.db.jsonutils import dumpjson
-from skimage.future.graph import rag_mean_color
+# from skimage.future.graph import rag_mean_color
+from skimage.graph import rag_mean_color
 from skimage import segmentation, color
 import dgl
 import cv2
