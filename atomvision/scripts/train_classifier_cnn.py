@@ -37,17 +37,17 @@ from skimage import segmentation, color
 import cv2
 from skimage.measure import regionprops
 from skimage import draw
-from alignn.models.alignn import (
-    ALIGNNConfig,
-    MLPLayer,
-    ALIGNNConv,
-    EdgeGatedGraphConv,
-)
-from alignn.models.utils import RBFExpansion
 from sklearn.metrics import confusion_matrix
 try:
     import dgl
     from dgl.nn import AvgPooling
+    from alignn.models.alignn import (
+        ALIGNNConfig,
+        MLPLayer,
+        ALIGNNConv,
+        EdgeGatedGraphConv,
+    )
+    from alignn.models.utils import RBFExpansion
 except Exception:
     pass
 # import dgl
