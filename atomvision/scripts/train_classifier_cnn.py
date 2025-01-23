@@ -34,7 +34,6 @@ from jarvis.db.jsonutils import dumpjson
 # from skimage.future.graph import rag_mean_color
 from skimage.graph import rag_mean_color
 from skimage import segmentation, color
-import dgl
 import cv2
 from skimage.measure import regionprops
 from skimage import draw
@@ -44,10 +43,13 @@ from alignn.models.alignn import (
     ALIGNNConv,
     EdgeGatedGraphConv,
 )
-from dgl.nn import AvgPooling
 from alignn.models.utils import RBFExpansion
 from sklearn.metrics import confusion_matrix
-
+try:
+    import dgl
+    from dgl.nn import AvgPooling
+except Exception:
+    pass
 # import dgl
 # import dgl.function as fn
 # import numpy as np
