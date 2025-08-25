@@ -9,9 +9,6 @@
 [![Downloads](https://pepy.tech/badge/atomvision)](https://pepy.tech/project/atomvision)
 # Atomvision
 
-⚠️ This repository is no longer maintained.
-For the latest updates and continued development, please visit: https://github.com/atomgptlab/atomvision
-
 # Table of Contents
 * [Introduction](#intro)
 * [Installation](#install)
